@@ -1,0 +1,17 @@
+{
+  "name": "Sổ Cân Nặng – HLV cá nhân",
+  "short_name": "Sổ Cân Nặng",
+  "description": "Theo dõi ăn uống, cân nặng và tập luyện với huấn luyện viên cá nhân",
+  "lang": "vi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0b0f",
+  "theme_color": "#e8490f",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

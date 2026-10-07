@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f3f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)">
+<title>Sổ Cân Nặng</title>
+<meta name="description" content="Theo dõi ăn uống, cân nặng và tập luyện với huấn luyện viên cá nhân">
+<!-- Cài lên màn hình chính (iPhone / Android) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sổ Cân Nặng">
+<meta name="format-detection" content="telephone=no">
+<!-- Font tiếng Việt; khi không có mạng sẽ tự dùng font hệ thống -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f3f6;--surface:#ffffff;--surface-2:#f4f5f8;--ink:#0e1116;--muted:#5f6b7c;--line:#e4e6eb;
+  --brand:#e8490f;--brand-ink:#c2410c;--brand-soft:#fff1ea;
+  --grad:linear-gradient(135deg,#f0561a 0%,#d7265f 100%);
+  --grad-cardio:linear-gradient(135deg,#2563eb 0%,#7c3aed 100%);
+  --grad-rest:linear-gradient(135deg,#0f766e 0%,#1d4ed8 100%);
+  --lime:#65a30d;--lime-soft:#ecfccb;--good:#15803d;--bad:#e11d48;--warn:#d97706;
+  --p:#2563eb;--c:#f59e0b;--f:#db2777;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06);
+  --r:18px;
+  --font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0a0b0f;--surface:#14161c;--surface-2:#1c1f27;--ink:#f4f5f7;--muted:#9aa3b2;--line:#272b35;
+    --brand:#ff6a2b;--brand-ink:#ff8a50;--brand-soft:rgba(255,106,43,.14);
+    --lime:#a3e635;--lime-soft:rgba(163,230,53,.14);--good:#4ade80;--bad:#fb7185;--warn:#fbbf24;
+    --p:#60a5fa;--c:#fbbf24;--f:#f472b6;--shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,label.chip,.wday,.water span.g{touch-action:manipulation}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+body.noscroll{overflow:hidden}
+.wrap{max-width:760px;margin:0 auto;padding:12px 16px 104px}
+h2{font-size:17px;font-weight:800;margin:0 0 10px;letter-spacing:-.01em}
+h3{font-size:12px;margin:18px 0 8px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.display{font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:-.02em;line-height:1.02}
+.eyebrow{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.muted{color:var(--muted)}.small{font-size:13px}.num{font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.between{justify-content:space-between}
+.hidden{display:none !important}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.card-title h2{margin:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:600}
+input,select,button{font:inherit;color:var(--ink)}
+/* 16px để Safari trên iPhone không tự phóng to khi bấm vào ô nhập */
+input,select{background:var(--surface-2);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;width:100%;min-width:0;font-weight:600;font-size:16px}
+input:focus,select:focus{outline:none;border-color:var(--brand)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:560px){.grid4{grid-template-columns:repeat(2,1fr)}}
+.err{color:var(--bad);font-size:14px;font-weight:600;margin-top:10px;min-height:1px}
+
+/* ---------- Nút ---------- */
+button{cursor:pointer;border:0;background:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;padding:10px 16px;font-weight:800;transition:transform .08s,filter .15s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 6px 16px rgba(232,73,15,.28)}
+.btn-primary:hover{filter:brightness(1.05)}
+.btn-ghost{background:var(--surface-2);color:var(--ink);border:1.5px solid var(--line)}
+.btn-white{background:#fff;color:#c2410c}
+.btn-glass{background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.35)}
+.btn-danger{background:var(--bad);color:#fff}
+.btn-lg{padding:14px 20px;font-size:16px;font-style:italic;text-transform:uppercase;letter-spacing:.02em;font-weight:900}
+.btn-sm{padding:6px 12px;font-size:13px;border-radius:10px}
+.btn-icon{width:40px;height:40px;padding:0;border-radius:12px}
+.icon-x{color:var(--muted);padding:4px 8px;font-size:16px;border-radius:8px}
+.icon-x:hover{color:var(--bad);background:var(--surface-2)}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- Thanh trên ---------- */
+.topbar{position:sticky;top:0;z-index:6;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.topbar .in{max-width:760px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:900;font-style:italic;letter-spacing:-.01em;font-size:17px;text-transform:uppercase}
+.logo .bolt{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;font-style:normal;font-size:16px;box-shadow:0 4px 12px rgba(232,73,15,.35)}
+.badges{display:flex;gap:6px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;font-weight:800}
+.badge.fire{background:var(--brand-soft);border-color:transparent;color:var(--brand-ink)}
+
+/* ---------- Thanh tab dưới ---------- */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;justify-content:center;gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+nav.tabs button{flex:1;max-width:140px;color:var(--muted);padding:6px 2px;font-weight:700;font-size:11.5px;border-radius:12px;white-space:nowrap}
+nav.tabs button i{display:block;font-style:normal;font-size:19px;line-height:1.3}
+nav.tabs button.on{color:var(--brand-ink);background:var(--brand-soft)}
+.tab{display:none}.tab.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:1 1 auto;color:var(--muted);padding:9px 8px;font-weight:800;font-size:14px;border-radius:10px;white-space:nowrap}
+.seg button.on{background:var(--grad);color:#fff}
+
+/* ---------- Ngày + dải tuần ---------- */
+.datebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 12px}
+.datebar .display{font-size:30px}
+.weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px}
+.wday{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;border-radius:14px;font-size:11.5px;font-weight:800;color:var(--muted)}
+.wday .dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:17px;background:var(--surface);border:1.5px solid var(--line)}
+.wday.rest .dot{font-size:14px;color:var(--muted)}
+.wday.done .dot{background:var(--lime);border-color:var(--lime);color:#14210a;font-size:16px}
+.wday.today{color:var(--brand-ink)}
+.wday.today .dot{border:2.5px solid var(--brand)}
+.wday.sel{background:var(--surface);box-shadow:var(--shadow)}
+
+/* ---------- Thẻ buổi tập (hero) ---------- */
+.hero{position:relative;overflow:hidden;border-radius:24px;padding:18px;margin-bottom:14px;color:#fff;background:var(--grad);box-shadow:0 12px 30px rgba(215,38,95,.25)}
+.hero.cardio{background:var(--grad-cardio);box-shadow:0 12px 30px rgba(79,70,229,.25)}
+.hero.rest{background:var(--grad-rest);box-shadow:0 12px 30px rgba(15,118,110,.22)}
+.hero::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.07) 0 14px,transparent 14px 34px);pointer-events:none}
+.hero .wm{position:absolute;right:-14px;bottom:-30px;font-size:150px;opacity:.16;transform:rotate(-12deg);pointer-events:none;line-height:1}
+.hero > *{position:relative}
+.hero .eyebrow{color:rgba(255,255,255,.85)}
+.hero .title{font-size:34px;margin:6px 0 10px}
+.chips-stat{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip-stat{display:inline-flex;gap:5px;align-items:center;padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.18);font-size:13px;font-weight:700}
+.hero ul{margin:0 0 14px;padding:0;list-style:none;font-size:14px;font-weight:600}
+.hero li{padding:3px 0;display:flex;gap:8px}
+.hero li::before{content:"›";opacity:.7;font-weight:900}
+.done-badge{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:12px;background:var(--lime);color:#14210a;font-weight:900;font-style:italic;text-transform:uppercase}
+
+/* ---------- HLV ---------- */
+.coach{display:grid;gap:8px}
+.coach-head{display:flex;gap:10px;align-items:center}
+.avatar{width:40px;height:40px;border-radius:12px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:900;font-style:italic;font-size:13px;flex:none}
+.bubble{background:var(--surface-2);border-radius:4px 14px 14px 14px;padding:10px 12px;font-size:14px}
+.bubble.goal{background:var(--brand-soft);color:var(--ink)}
+
+/* ---------- Năng lượng ---------- */
+.energy{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ring{position:relative;width:148px;height:148px;flex:none}
+.ring svg{display:block}
+.ring circle.prog{transition:stroke-dasharray .6s ease}
+.ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring .big{font-size:30px;font-weight:900;font-style:italic;letter-spacing:-.02em}
+.tiles{flex:1;min-width:200px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--surface-2);border-radius:14px;padding:10px 12px}
+.tile b{display:block;font-size:20px;font-weight:900;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.tile .small{font-weight:700}
+.tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:560px){.tiles3{grid-template-columns:repeat(2,1fr)}}
+.bar{height:10px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;transition:width .6s ease}
+.macro{margin-top:14px;display:grid;gap:10px}
+.macro .top{display:flex;justify-content:space-between;font-size:13px;font-weight:700}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:560px){.duo{grid-template-columns:1fr}}
+.duo .card{margin-bottom:0}
+.duo-wrap{margin-bottom:14px}
+.bigw{font-size:34px;font-weight:900;font-style:italic;letter-spacing:-.02em}
+.water{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.water span.g{width:22px;height:30px;border:2px solid var(--p);border-radius:4px 4px 9px 9px;cursor:pointer;transition:background .15s}
+.water span.g.full{background:var(--p)}
+
+/* ---------- Danh sách, bảng ---------- */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .name{flex:1;min-width:0}
+.list .kc{font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;background:var(--brand-soft);color:var(--brand-ink);font-weight:800}
+.pill.lime{background:var(--lime-soft);color:var(--good)}
+.warnbox{border-left:4px solid var(--warn);background:var(--surface-2);padding:9px 12px;border-radius:10px;font-size:14px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}
+.tablewrap{overflow-x:auto}
+.good{color:var(--good)}.over{color:var(--bad)}
+svg text{fill:var(--muted);font-size:11px;font-family:var(--font)}
+ul.rules{margin:0;padding-left:20px}
+ul.rules li{margin:8px 0}
+ul.rules li::marker{color:var(--brand)}
+
+/* ---------- Kế hoạch ---------- */
+.timeline{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:12px 0 6px}
+.timeline i{height:12px;border-radius:4px}
+.timeline i.now{outline:2.5px solid var(--ink);outline-offset:1.5px}
+.intro{background:#93c5fd}.build{background:#86efac}.deload{background:#fde68a}.push{background:#f9a8d4}.review{background:#c4b5fd}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);font-weight:600}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.dcard{border-left:5px solid var(--brand)}
+.dcard.k-cardio{border-left-color:#4f46e5}
+.dcard.k-rest{border-left-color:var(--line);background:var(--surface-2);box-shadow:none}
+.dcard.now{box-shadow:0 0 0 2px var(--brand),var(--shadow)}
+.dhead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.dtitle{font-size:20px;margin-top:2px}
+.exlist{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.exrow{display:grid;grid-template-columns:30px 1fr;gap:10px}
+.exnum{width:30px;height:30px;border-radius:10px;background:var(--brand-soft);color:var(--brand-ink);display:grid;place-items:center;font-weight:900;font-style:italic}
+.exname{font-weight:800}
+.exmeta{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;align-items:center}
+.tag{display:inline-block;font-size:12px;font-weight:800;padding:2px 8px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.muscle{font-size:12px;color:var(--muted);font-weight:600}
+.cue{display:block;color:var(--muted);font-size:13px}
+.alt{font-size:12.5px;margin-top:3px;color:var(--muted)}
+.alt b{color:var(--ink);font-weight:700}
+details{margin-top:10px;font-size:14px}
+details summary{cursor:pointer;font-weight:800;color:var(--muted);font-size:13px}
+details ul{margin:6px 0 0;padding-left:20px}
+.meal{border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px;background:var(--surface)}
+.meal .h{display:flex;justify-content:space-between;gap:8px;font-weight:800;align-items:center}
+.meal ul{margin:6px 0 0;padding-left:18px;font-size:14px}
+.fuel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.fuel div{background:var(--brand-soft);border-radius:12px;padding:9px 11px;font-size:13px}
+.fuel b{display:block;font-size:14px}
+
+/* ---------- Khảo sát ---------- */
+.wz{max-width:680px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px 120px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chips.col.compact{grid-template-columns:repeat(2,minmax(0,1fr))}
+.chips.compact .chip span{padding:9px 11px;font-size:13.5px}
+.chips.compact .chip small{font-size:11.5px;line-height:1.35}
+.eq-count{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--brand-soft);font-size:14px}
+.tag.eq{background:var(--brand-soft);border-color:transparent;color:var(--brand-ink)}
+.install{border:1.5px solid var(--brand)}
+.share-ic{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:5px;background:var(--surface-2);font-size:12px}
+.wz-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.wz-segs{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:18px}
+.wz-segs i{height:6px;border-radius:99px;background:var(--line);transition:background .3s}
+.wz-segs i.on{background:var(--grad)}
+.wz-num{font-size:56px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block;padding:.08em 6px 0 0;line-height:1.15}
+.wz-title{font-size:30px;margin:2px 0 6px}
+.wz-nav{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.wz-nav .in{max-width:680px;margin:0 auto;display:flex;gap:10px}
+.wz-nav .grow{flex:1}
+.q{margin-top:20px}
+.qt{font-weight:800;margin-bottom:8px;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chips.col{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+label.chip{flex-direction:row;color:var(--ink);font-size:14px;position:relative;font-weight:700}
+.chip input{position:absolute;opacity:0;width:0;height:0}
+.chip span{display:block;width:100%;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;cursor:pointer;background:var(--surface);transition:all .15s}
+.chips:not(.col) .chip span{border-radius:99px;padding:8px 14px}
+.chip small{display:block;color:var(--muted);font-size:12px;font-weight:500;margin-top:2px}
+.chip input:checked+span{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink)}
+.chip input:checked+span small{color:var(--brand-ink);opacity:.85}
+.chip input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+.unit{display:flex;align-items:center;gap:10px;max-width:240px}
+.unit input{font-size:20px;font-weight:800;padding:10px 14px}
+.unit span{color:var(--muted);font-weight:700}
+label.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px;margin-top:14px}
+label.check input{width:auto}
+.preview{margin-top:18px;border-radius:16px;background:var(--surface);border:1.5px solid var(--brand);padding:14px 16px}
+.preview .big{font-size:22px;font-weight:900;font-style:italic}
+
+/* ---------- Màn phân tích ---------- */
+.overlay{position:fixed;inset:0;z-index:40;background:var(--bg);display:grid;place-items:center;padding:24px}
+.analyze{max-width:360px;width:100%}
+.analyze .display{font-size:30px;margin:8px 0 18px}
+.astep{display:flex;gap:12px;align-items:center;padding:9px 0;font-weight:700;color:var(--muted);transition:color .2s}
+.astep .ic{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--line);display:grid;place-items:center;font-size:13px;flex:none}
+.astep.run .ic{border-color:var(--brand);border-top-color:transparent;animation:spin .7s linear infinite}
+.astep.ok{color:var(--ink)}
+.astep.ok .ic{background:var(--lime);border-color:var(--lime);color:#14210a}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- Chế độ tập ---------- */
+.player{position:fixed;inset:0;z-index:50;background:#0a0b0f;color:#fff;display:flex;flex-direction:column}
+.player .eyebrow{color:rgba(255,255,255,.6)}
+.pl-top{max-width:640px;width:100%;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px 0}
+.pl-top .row{flex-wrap:nowrap}
+.pl-close{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font-size:18px}
+.pl-prog{height:6px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:12px}
+.pl-prog i{display:block;height:100%;background:var(--grad);transition:width .4s}
+.pl-body{flex:1;overflow-y:auto;max-width:640px;width:100%;margin:0 auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+.pl-name{font-size:34px}
+.pl-cue{color:rgba(255,255,255,.75);font-size:15px}
+.pl-set{display:flex;align-items:baseline;gap:10px}
+.pl-set .display{font-size:64px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding:.12em 6px 0 0;line-height:1.15}
+.pl-target{font-size:22px;font-weight:800}
+.pl-count{font-size:84px;font-weight:900;font-style:italic;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.pl-ring{position:relative;width:240px;height:240px;margin:6px auto}
+.pl-ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pl-chip{display:inline-flex;gap:6px;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.1);font-weight:700;font-size:13px}
+.pl-alt{display:flex;gap:8px;flex-wrap:wrap}
+.pl-alt button{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,.15)}
+.pl-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pl-list li{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;font-weight:600}
+.pl-actions{max-width:640px;width:100%;margin:0 auto;padding:12px 16px calc(14px + env(safe-area-inset-bottom));display:flex;gap:10px}
+.pl-actions .btn{flex:1}
+.pl-actions .btn-ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.15)}
+.pl-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pl-stats div{background:rgba(255,255,255,.08);border-radius:14px;padding:12px;text-align:center;font-size:13px;color:rgba(255,255,255,.7);font-weight:700}
+.pl-stats b{display:block;font-size:26px;font-weight:900;font-style:italic;color:#fff;font-variant-numeric:tabular-nums}
+.pl-hold{font-size:56px;font-weight:900;font-style:italic;font-variant-numeric:tabular-nums}
+.pl-hold.ok{color:var(--lime)}
+.center{text-align:center}
+
+/* ---------- Thông báo nhanh ---------- */
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:800;transition:all .25s;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- =================== KHẢO SÁT =================== -->
+<div id="wizard" class="hidden">
+  <div class="wz">
+    <div class="wz-top"><div class="logo"><span class="bolt">⚡</span>Sổ Cân Nặng</div><div id="wzStepLbl" class="eyebrow"></div></div>
+    <div class="wz-segs" id="wzSegs"></div>
+    <div><span class="display wz-num" id="wzNum"></span></div>
+    <div class="display wz-title" id="wzTitle"></div>
+    <div id="wzSub" class="muted"></div>
+    <div id="wzBody"></div>
+    <div id="wzErr" class="err"></div>
+  </div>
+  <div class="wz-nav"><div class="in">
+    <button class="btn btn-ghost" data-act="wzBack" id="wzBackBtn">‹ Quay lại</button>
+    <button class="btn btn-ghost hidden" data-act="wzCancel" id="wzCancelBtn">Hủy</button>
+    <span class="grow"></span>
+    <button class="btn btn-primary btn-lg" data-act="wzNext" id="wzNextBtn">Tiếp ›</button>
+  </div></div>
+</div>
+
+<!-- =================== MÀN PHÂN TÍCH =================== -->
+<div id="analyzing" class="overlay hidden">
+  <div class="analyze">
+    <div class="logo"><span class="bolt">⚡</span>HLV đang phân tích</div>
+    <div class="display">Lập kế hoạch cho bạn</div>
+    <div id="aSteps"></div>
+  </div>
+</div>
+
+<!-- =================== ỨNG DỤNG =================== -->
+<div id="app" class="hidden">
+  <header class="topbar"><div class="in">
+    <div class="logo"><span class="bolt">⚡</span>Sổ Cân Nặng</div>
+    <div class="badges" id="topBadges"></div>
+  </div></header>
+
+  <main class="wrap">
+    <!-- ---------- HÔM NAY ---------- -->
+    <section class="tab" id="tab-today">
+      <div class="datebar">
+        <button class="btn btn-ghost btn-icon" data-act="prev" aria-label="Ngày trước">‹</button>
+        <div style="text-align:center"><div class="eyebrow" id="selSub"></div><div class="display" id="selDate"></div></div>
+        <button class="btn btn-ghost btn-icon" data-act="next" aria-label="Ngày sau">›</button>
+      </div>
+      <div id="installCard"></div>
+      <div class="weekstrip" id="weekStrip"></div>
+      <div id="hero"></div>
+      <div id="coachCard"></div>
+      <div class="card">
+        <div class="card-title"><h2>⚡ Năng lượng hôm nay</h2><span id="dayTag"></span></div>
+        <div class="energy"><div class="ring" id="ring"></div><div class="tiles" id="todayStats"></div></div>
+        <div class="macro" id="macros"></div>
+      </div>
+      <div class="duo duo-wrap">
+        <div class="card">
+          <div class="eyebrow">⚖️ Cân nặng</div>
+          <div class="row between" style="margin-top:2px"><div class="bigw num" id="wNow"></div><div class="small muted" id="wDelta"></div></div>
+          <div class="row" style="flex-wrap:nowrap;margin-top:8px">
+            <input id="wInput" type="number" step="0.1" inputmode="decimal" placeholder="Nhập kg">
+            <button class="btn btn-primary" data-act="saveWeight">Lưu</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">💧 Nước uống</div>
+          <div class="water" id="water" style="margin-top:8px"></div>
+          <div class="small muted" id="stepsLine" style="margin-top:10px"></div>
+        </div>
+      </div>
+      <div class="card" id="todayMenu"></div>
+      <div class="card">
+        <h2>🍚 Nhật ký ăn uống</h2>
+        <div id="mealList"></div>
+        <h3>Thêm món</h3>
+        <div class="grid2">
+          <label>Bữa
+            <select id="fMeal"><option value="sang">Bữa sáng</option><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option><option value="phu">Ăn vặt / phụ</option></select>
+          </label>
+          <label>Món (gõ để tìm, hoặc tự nhập)<input id="fName" list="foodList" placeholder="vd: Phở bò" autocomplete="off"></label>
+        </div>
+        <datalist id="foodList"></datalist>
+        <div class="grid4" style="margin-top:8px">
+          <label>Số phần <input id="fQty" type="number" step="0.25" value="1" min="0"></label>
+          <label>Calo (kcal) <input id="fKcal" type="number" step="1" min="0"></label>
+          <label>Đạm (g) <input id="fP" type="number" step="0.1" min="0"></label>
+          <label>Tinh bột (g) <input id="fC" type="number" step="0.1" min="0"></label>
+          <label>Chất béo (g) <input id="fF" type="number" step="0.1" min="0"></label>
+        </div>
+        <div class="small muted" id="fUnit" style="margin-top:6px"></div>
+        <div class="row between" style="margin-top:10px">
+          <label class="check" style="margin:0"><input type="checkbox" id="fSave"> Lưu vào "món của tôi"</label>
+          <button class="btn btn-primary" data-act="addMeal">+ Thêm món</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>🏃 Vận động thêm</h2>
+        <div class="small muted" style="margin-bottom:6px">Buổi tập trong lịch đã được tính vào calo mục tiêu. Vận động thêm ngoài lịch được cộng lại 50% vào khẩu phần.</div>
+        <ul class="list" id="exList"></ul>
+        <div class="grid4" style="margin-top:8px">
+          <label style="grid-column:span 2">Hoạt động <select id="eType"></select></label>
+          <label>Số phút <input id="eMin" type="number" min="0" step="5" value="30"></label>
+          <label>Calo đốt (ước tính) <input id="eKcal" type="number" min="0" step="1"></label>
+        </div>
+        <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn btn-primary" data-act="addEx">+ Thêm</button></div>
+      </div>
+    </section>
+
+    <!-- ---------- KẾ HOẠCH ---------- -->
+    <section class="tab" id="tab-plan">
+      <div class="seg">
+        <button data-sub="overview">Tổng quan</button>
+        <button data-sub="train">Lịch tập</button>
+        <button data-sub="menu">Thực đơn</button>
+        <button data-sub="rules">Quy tắc</button>
+      </div>
+      <div id="planBody"></div>
+    </section>
+
+    <!-- ---------- CÂN NẶNG ---------- -->
+    <section class="tab" id="tab-weight">
+      <div class="card"><h2>📈 Tiến độ</h2><div id="progress"></div></div>
+      <div class="card">
+        <h2>Biểu đồ cân nặng</h2>
+        <div id="chart"></div>
+        <div class="small muted">Chấm = cân thực tế · Đường liền = trung bình 7 ngày · Nét đứt = mục tiêu</div>
+      </div>
+      <div class="card"><h2>Các lần cân</h2><ul class="list" id="wList"></ul></div>
+    </section>
+
+    <!-- ---------- LỊCH SỬ ---------- -->
+    <section class="tab" id="tab-history">
+      <div class="card">
+        <h2>🗓 30 ngày gần nhất</h2>
+        <div id="weekAvg" class="small muted" style="margin-bottom:8px"></div>
+        <div class="tablewrap"><table id="histTable"></table></div>
+        <div class="small muted" style="margin-top:8px">Bấm vào một ngày để mở nhật ký của ngày đó.</div>
+      </div>
+    </section>
+
+    <!-- ---------- CÀI ĐẶT ---------- -->
+    <section class="tab" id="tab-settings">
+      <div class="card">
+        <div class="card-title"><h2>👤 Hồ sơ của bạn</h2><button class="btn btn-primary btn-sm" data-act="editProfile">✏️ Làm lại khảo sát</button></div>
+        <div id="profileSummary"></div>
+      </div>
+      <div class="card" id="brainCard"></div>
+      <div class="card">
+        <h2>💾 Dữ liệu</h2>
+        <div class="muted small" style="margin-bottom:10px">Dữ liệu chỉ lưu trong trình duyệt trên máy này. Nên xuất file sao lưu định kỳ, vì xóa dữ liệu trình duyệt sẽ mất hết.</div>
+        <div class="row">
+          <button class="btn btn-ghost" data-act="export">⬇ Xuất file sao lưu</button>
+          <button class="btn btn-ghost" data-act="import">⬆ Nhập từ file</button>
+          <button class="btn btn-danger" data-act="reset">Xóa toàn bộ</button>
+          <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+        </div>
+        <h3>Món của tôi</h3>
+        <ul class="list" id="customList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-tab="today"><i>⚡</i>Hôm nay</button>
+    <button data-tab="plan"><i>🧭</i>Kế hoạch</button>
+    <button data-tab="weight"><i>📈</i>Cân nặng</button>
+    <button data-tab="history"><i>🗓</i>Lịch sử</button>
+    <button data-tab="settings"><i>⚙️</i>Cài đặt</button>
+  </nav>
+</div>
+
+<!-- =================== CHẾ ĐỘ TẬP =================== -->
+<div id="player" class="player hidden" role="dialog" aria-modal="true" aria-label="Chế độ tập"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- Bộ não (dữ liệu) → bộ máy phân tích → giao diện -->
+<script src="brain/exercises.js"></script>
+<script src="brain/programs.js"></script>
+<script src="brain/nutrition.js"></script>
+<script src="brain/rules.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
