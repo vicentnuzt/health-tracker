@@ -306,6 +306,90 @@ label.check input{width:auto}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:800;transition:all .25s;pointer-events:none}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ---------- Dinh dưỡng ---------- */
+.search{position:relative;margin-bottom:10px}
+.search input{padding:12px 14px 12px 40px;font-size:16px;border-radius:14px}
+.search::before{content:"🔍";position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;opacity:.7}
+.cats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 10px;padding:0 16px}
+.cats::-webkit-scrollbar{display:none}
+.cats button{flex:none;padding:7px 12px;border-radius:99px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;font-size:13px;white-space:nowrap}
+.cats button.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-ink)}
+.foods{list-style:none;margin:0;padding:0}
+.food{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.food:last-child{border-bottom:0}
+.food .fn{font-weight:700;min-width:0}
+.food .fu{font-size:12.5px;color:var(--muted);font-weight:500}
+.food .fk{text-align:right;font-variant-numeric:tabular-nums;line-height:1.2}
+.food .fk b{font-size:17px;font-weight:900}
+.food .fk small{display:block;color:var(--muted);font-size:12px;font-weight:600}
+.food .fx{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.flag{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 8px;border-radius:99px;margin-top:3px}
+.flag.good{background:var(--lime-soft);color:var(--good)}
+.flag.limit{background:rgba(225,29,72,.1);color:var(--bad)}
+.add{width:36px;height:36px;border-radius:10px;background:var(--brand-soft);color:var(--brand-ink);font-weight:900;font-size:18px}
+.daybar{margin:10px 0 2px}
+
+/* ---------- Tiến độ ---------- */
+.sess{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.sess:last-child{border-bottom:0}
+.sess .sd{width:46px;text-align:center;border-radius:12px;background:var(--surface-2);padding:5px 0;line-height:1.15}
+.sess .sd b{display:block;font-size:17px;font-weight:900}
+.sess .sd small{font-size:11px;color:var(--muted);font-weight:700}
+.sess .st{font-weight:800}
+.sess .sm{font-size:12.5px;color:var(--muted)}
+.pr{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
+.pr:last-child{border-bottom:0}
+.pr b{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- Cài đặt âm thanh ---------- */
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;color:var(--ink);font-size:15px;font-weight:700;flex-direction:row}
+.switch input{width:46px;height:28px;appearance:none;-webkit-appearance:none;border-radius:99px;background:var(--line);position:relative;cursor:pointer;padding:0;border:0;flex:none;transition:background .2s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked{background:var(--brand)}
+.switch input:checked::after{left:21px}
+input[type=range]{padding:0;height:28px;accent-color:var(--brand);background:none;border:0}
+.exguide{font-size:13px;color:var(--muted);margin-top:4px}
+.exguide a{color:var(--brand-ink);font-weight:700}
+.lastperf{font-size:12.5px;font-weight:700;color:var(--good);margin-top:2px}
+
+/* ---------- Chế độ tập (bổ sung) ---------- */
+.player h4{margin:6px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.6)}
+.pl-ic{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font-size:17px}
+.pl-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-meta{margin-top:6px;font-size:12.5px;color:rgba(255,255,255,.6);font-weight:700;font-variant-numeric:tabular-nums}
+.pl-info{color:rgba(255,255,255,.75);font-weight:700}
+.pl-sub{color:rgba(255,255,255,.6);font-size:14px}
+.pl-opts{display:flex;flex-wrap:wrap;gap:8px}
+.pl-opt{padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);color:#fff;font-weight:700;text-align:left}
+.pl-opt small{display:block;font-weight:500;font-size:12px;opacity:.7}
+.pl-opt.on{background:rgba(255,106,43,.22);border-color:#ff6a2b}
+.pl-wide{width:100%;justify-content:center;background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.15)}
+.pl-list.num{list-style:decimal;padding-left:22px}
+.pl-list.num li{padding:8px 10px}
+.pl-list small{display:block;opacity:.65;font-weight:600}
+.pl-list li.cur{outline:2px solid #ff6a2b}
+.pl-ex-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pl-link{color:#ff8a50;font-weight:800;font-size:13px;white-space:nowrap}
+.pl-guide{background:rgba(255,255,255,.07);border-radius:14px;padding:12px;display:grid;gap:6px;font-size:14px}
+.pl-guide a{color:#ff8a50;font-weight:800}
+.pl-dots{display:flex;gap:6px}
+.pl-dots i{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.15)}
+.pl-dots i.ok{background:#a3e635}
+.pl-dots i.now{background:#ff6a2b;box-shadow:0 0 0 3px rgba(255,106,43,.3)}
+.pl-sugg{background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;font-weight:700;font-size:14px}
+.pl-sugg.up{background:rgba(163,230,53,.14);color:#d9f99d}
+.pl-steppers{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stepper{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;background:rgba(255,255,255,.07);border-radius:16px;padding:6px;position:relative}
+.stepper button{height:52px;border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font-size:26px;font-weight:700}
+.stepper button:active{background:rgba(255,106,43,.35)}
+.stepper div{text-align:center;line-height:1.1}
+.stepper div b{display:block;font-size:30px;font-weight:900;font-style:italic;font-variant-numeric:tabular-nums}
+.stepper div span{font-size:12px;opacity:.65;font-weight:700}
+.stepper small{grid-column:1/-1;text-align:center;font-size:11px;opacity:.5;margin-top:2px}
+.pl-pr{background:linear-gradient(135deg,rgba(240,86,26,.25),rgba(215,38,95,.25));border-radius:14px;padding:12px;font-weight:800;text-align:center}
+.pl-panel{position:absolute;left:0;right:0;bottom:0;max-height:70%;overflow:auto;background:#16181f;border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.pl-panel li{cursor:pointer}
+
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}}
 </style>
 </head>
@@ -359,9 +443,8 @@ label.check input{width:auto}
       <div id="hero"></div>
       <div id="coachCard"></div>
       <div class="card">
-        <div class="card-title"><h2>⚡ Năng lượng hôm nay</h2><span id="dayTag"></span></div>
+        <div class="card-title"><h2>⚡ Năng lượng</h2><button class="btn btn-ghost btn-sm" data-act="openFood">🍜 Tra & ghi món ›</button></div>
         <div class="energy"><div class="ring" id="ring"></div><div class="tiles" id="todayStats"></div></div>
-        <div class="macro" id="macros"></div>
       </div>
       <div class="duo duo-wrap">
         <div class="card">
@@ -378,34 +461,9 @@ label.check input{width:auto}
           <div class="small muted" id="stepsLine" style="margin-top:10px"></div>
         </div>
       </div>
-      <div class="card" id="todayMenu"></div>
-      <div class="card">
-        <h2>🍚 Nhật ký ăn uống</h2>
-        <div id="mealList"></div>
-        <h3>Thêm món</h3>
-        <div class="grid2">
-          <label>Bữa
-            <select id="fMeal"><option value="sang">Bữa sáng</option><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option><option value="phu">Ăn vặt / phụ</option></select>
-          </label>
-          <label>Món (gõ để tìm, hoặc tự nhập)<input id="fName" list="foodList" placeholder="vd: Phở bò" autocomplete="off"></label>
-        </div>
-        <datalist id="foodList"></datalist>
-        <div class="grid4" style="margin-top:8px">
-          <label>Số phần <input id="fQty" type="number" step="0.25" value="1" min="0"></label>
-          <label>Calo (kcal) <input id="fKcal" type="number" step="1" min="0"></label>
-          <label>Đạm (g) <input id="fP" type="number" step="0.1" min="0"></label>
-          <label>Tinh bột (g) <input id="fC" type="number" step="0.1" min="0"></label>
-          <label>Chất béo (g) <input id="fF" type="number" step="0.1" min="0"></label>
-        </div>
-        <div class="small muted" id="fUnit" style="margin-top:6px"></div>
-        <div class="row between" style="margin-top:10px">
-          <label class="check" style="margin:0"><input type="checkbox" id="fSave"> Lưu vào "món của tôi"</label>
-          <button class="btn btn-primary" data-act="addMeal">+ Thêm món</button>
-        </div>
-      </div>
       <div class="card">
         <h2>🏃 Vận động thêm</h2>
-        <div class="small muted" style="margin-bottom:6px">Buổi tập trong lịch đã được tính vào calo mục tiêu. Vận động thêm ngoài lịch được cộng lại 50% vào khẩu phần.</div>
+        <div class="small muted" style="margin-bottom:6px">Buổi tập trong lịch đã tính vào calo mục tiêu. Vận động thêm ngoài lịch được cộng lại 50% vào khẩu phần.</div>
         <ul class="list" id="exList"></ul>
         <div class="grid4" style="margin-top:8px">
           <label style="grid-column:span 2">Hoạt động <select id="eType"></select></label>
@@ -416,20 +474,62 @@ label.check input{width:auto}
       </div>
     </section>
 
-    <!-- ---------- KẾ HOẠCH ---------- -->
+    <!-- ---------- LỊCH TẬP ---------- -->
     <section class="tab" id="tab-plan">
       <div class="seg">
-        <button data-sub="overview">Tổng quan</button>
-        <button data-sub="train">Lịch tập</button>
-        <button data-sub="menu">Thực đơn</button>
-        <button data-sub="rules">Quy tắc</button>
+        <button data-sub="week">Tuần này</button>
+        <button data-sub="cycle">Chu kỳ 12 tuần</button>
+        <button data-sub="rules">Quy tắc tập</button>
       </div>
       <div id="planBody"></div>
     </section>
 
-    <!-- ---------- CÂN NẶNG ---------- -->
-    <section class="tab" id="tab-weight">
-      <div class="card"><h2>📈 Tiến độ</h2><div id="progress"></div></div>
+    <!-- ---------- DINH DƯỠNG ---------- -->
+    <section class="tab" id="tab-food">
+      <div class="card" id="foodTarget"></div>
+      <div id="adaptiveCard"></div>
+      <div class="card">
+        <h2>🔍 Tra cứu calo</h2>
+        <div class="search"><input id="foodQ" type="search" placeholder="Gõ tên món, vd: pho bo, tra sua…" autocomplete="off" enterkeyhint="search"></div>
+        <div class="cats" id="foodCats"></div>
+        <ul class="foods" id="foodResults"></ul>
+      </div>
+      <div class="card"><h2>✅ Nên ăn</h2><div class="small muted" id="goodNote" style="margin-bottom:4px"></div><ul class="foods" id="foodGood"></ul></div>
+      <div class="card"><h2>⚠️ Nên hạn chế</h2><div class="small muted" style="margin-bottom:4px">Không cần cấm hẳn: ăn ít đi, hoặc đổi sang gợi ý bên dưới.</div><ul class="foods" id="foodLimit"></ul></div>
+      <div class="card">
+        <div class="card-title"><h2>📝 Nhật ký ăn</h2><span class="small muted" id="logDateLbl"></span></div>
+        <div id="mealList"></div>
+        <details style="margin-top:12px"><summary>+ Tự nhập món không có trong danh sách</summary>
+          <div class="grid2" style="margin-top:8px">
+            <label>Bữa
+              <select id="fMeal"><option value="sang">Bữa sáng</option><option value="trua">Bữa trưa</option><option value="toi">Bữa tối</option><option value="phu">Ăn vặt / phụ</option></select>
+            </label>
+            <label>Tên món <input id="fName" list="foodList" placeholder="vd: Bún bò" autocomplete="off"></label>
+          </div>
+          <datalist id="foodList"></datalist>
+          <div class="grid4" style="margin-top:8px">
+            <label>Số phần <input id="fQty" type="number" step="0.25" value="1" min="0"></label>
+            <label>Calo (kcal) <input id="fKcal" type="number" step="1" min="0"></label>
+            <label>Đạm (g) <input id="fP" type="number" step="0.1" min="0"></label>
+            <label>Tinh bột (g) <input id="fC" type="number" step="0.1" min="0"></label>
+            <label>Chất béo (g) <input id="fF" type="number" step="0.1" min="0"></label>
+          </div>
+          <div class="small muted" id="fUnit" style="margin-top:6px"></div>
+          <div class="row between" style="margin-top:10px">
+            <label class="check" style="margin:0"><input type="checkbox" id="fSave"> Lưu vào "món của tôi"</label>
+            <button class="btn btn-primary" data-act="addMeal">+ Thêm món</button>
+          </div>
+        </details>
+      </div>
+      <div id="foodRules"></div>
+    </section>
+
+    <!-- ---------- TIẾN ĐỘ ---------- -->
+    <section class="tab" id="tab-progress">
+      <div class="card"><h2>💪 Tập luyện</h2><div class="tiles3" id="trainStats"></div></div>
+      <div class="card"><h2>🗓 Lịch sử buổi tập</h2><div id="sessList"></div></div>
+      <div class="card"><h2>🏆 Kỷ lục cá nhân</h2><div class="small muted" style="margin-bottom:4px">Mức tốt nhất của từng bài, ghi tự động khi bạn tập.</div><div id="prList"></div></div>
+      <div class="card"><h2>📈 Cân nặng</h2><div id="progress"></div></div>
       <div class="card">
         <h2>Biểu đồ cân nặng</h2>
         <div id="chart"></div>
@@ -438,26 +538,17 @@ label.check input{width:auto}
       <div class="card"><h2>Các lần cân</h2><ul class="list" id="wList"></ul></div>
     </section>
 
-    <!-- ---------- LỊCH SỬ ---------- -->
-    <section class="tab" id="tab-history">
-      <div class="card">
-        <h2>🗓 30 ngày gần nhất</h2>
-        <div id="weekAvg" class="small muted" style="margin-bottom:8px"></div>
-        <div class="tablewrap"><table id="histTable"></table></div>
-        <div class="small muted" style="margin-top:8px">Bấm vào một ngày để mở nhật ký của ngày đó.</div>
-      </div>
-    </section>
-
     <!-- ---------- CÀI ĐẶT ---------- -->
     <section class="tab" id="tab-settings">
       <div class="card">
         <div class="card-title"><h2>👤 Hồ sơ của bạn</h2><button class="btn btn-primary btn-sm" data-act="editProfile">✏️ Làm lại khảo sát</button></div>
         <div id="profileSummary"></div>
       </div>
+      <div class="card" id="soundCard"></div>
       <div class="card" id="brainCard"></div>
       <div class="card">
         <h2>💾 Dữ liệu</h2>
-        <div class="muted small" style="margin-bottom:10px">Dữ liệu chỉ lưu trong trình duyệt trên máy này. Nên xuất file sao lưu định kỳ, vì xóa dữ liệu trình duyệt sẽ mất hết.</div>
+        <div class="muted small" style="margin-bottom:10px">Dữ liệu chỉ lưu trên thiết bị này. Nên xuất file sao lưu định kỳ, vì xóa app hoặc dữ liệu trình duyệt sẽ mất hết.</div>
         <div class="row">
           <button class="btn btn-ghost" data-act="export">⬇ Xuất file sao lưu</button>
           <button class="btn btn-ghost" data-act="import">⬆ Nhập từ file</button>
@@ -472,9 +563,9 @@ label.check input{width:auto}
 
   <nav class="tabs">
     <button data-tab="today"><i>⚡</i>Hôm nay</button>
-    <button data-tab="plan"><i>🧭</i>Kế hoạch</button>
-    <button data-tab="weight"><i>📈</i>Cân nặng</button>
-    <button data-tab="history"><i>🗓</i>Lịch sử</button>
+    <button data-tab="plan"><i>🏋️</i>Lịch tập</button>
+    <button data-tab="food"><i>🍜</i>Dinh dưỡng</button>
+    <button data-tab="progress"><i>📈</i>Tiến độ</button>
     <button data-tab="settings"><i>⚙️</i>Cài đặt</button>
   </nav>
 </div>
@@ -492,7 +583,7 @@ label.check input{width:auto}
   // Kiểm tra đủ file "bộ não"; thiếu thì báo rõ thay vì để màn hình trắng
   (function () {
     var B = window.BRAIN || {};
-    var need = {'brain/exercises.js': B.EXERCISES, 'brain/programs.js': B.PHASES, 'brain/nutrition.js': B.DISHES, 'brain/rules.js': B.RULES};
+    var need = {'brain/exercises.js': B.EXERCISES, 'brain/programs.js': B.PHASES, 'brain/nutrition.js': B.FOOD_DB, 'brain/rules.js': B.RULES};
     var miss = Object.keys(need).filter(function (k) { return !need[k]; });
     if (!miss.length) return;
     document.addEventListener('DOMContentLoaded', function () {
@@ -504,6 +595,8 @@ label.check input{width:auto}
   })();
 </script>
 <script src="engine.js"></script>
+<script src="audio.js"></script>
 <script src="app.js"></script>
+<script src="player.js"></script>
 </body>
 </html>

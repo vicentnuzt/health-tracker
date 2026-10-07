@@ -57,6 +57,24 @@ BRAIN.SLOT_INFO = {
   balance: {name: 'Thăng bằng', muscles: 'Thăng bằng · Cổ chân · Hông', zone: 'core'}
 };
 
+// Hướng dẫn chung theo nhóm động tác: cách thở + lỗi thường gặp (hiện trong lịch tập và lúc tập)
+BRAIN.SLOT_GUIDE = {
+  squat: {breath: 'Hít vào khi hạ người, thở ra khi đứng lên.', mistakes: ['Gối đổ vào trong', 'Nhấc gót khỏi sàn', 'Cong lưng dưới ở đáy']},
+  lunge: {breath: 'Hít vào khi hạ xuống, thở ra khi đẩy lên.', mistakes: ['Gối trước đổ vào trong', 'Thân đổ về trước quá nhiều', 'Bước quá ngắn làm gối vượt xa mũi chân']},
+  hinge: {breath: 'Hít sâu, siết bụng trước khi gập; thở ra khi đứng thẳng.', mistakes: ['Cong lưng', 'Gập gối thay vì đẩy hông ra sau', 'Tạ rời xa người']},
+  glute: {breath: 'Thở ra khi đẩy hông lên, hít vào khi hạ xuống.', mistakes: ['Ưỡn lưng thay vì siết mông', 'Đẩy bằng mũi chân thay vì gót', 'Làm quá nhanh']},
+  calf: {breath: 'Thở đều, không nín thở.', mistakes: ['Nhún nảy thay vì nhón hết biên độ', 'Không dừng ở đỉnh']},
+  hpush: {breath: 'Hít vào khi hạ xuống, thở ra khi đẩy lên.', mistakes: ['Võng hông', 'Khuỷu tay bè ngang 90°', 'Hạ không đủ sâu']},
+  vpush: {breath: 'Thở ra khi đẩy lên, hít vào khi hạ xuống.', mistakes: ['Ưỡn lưng', 'Nhún vai lên tai', 'Đẩy tạ ra trước thay vì thẳng lên']},
+  hpull: {breath: 'Thở ra khi kéo, hít vào khi duỗi tay.', mistakes: ['Giật người lấy đà', 'Kéo bằng tay, không ép bả vai', 'Nhún vai']},
+  vpull: {breath: 'Thở ra khi kéo xuống / kéo người lên, hít vào khi hạ.', mistakes: ['Đung đưa người', 'Không duỗi hết tay ở dưới', 'Nhún vai lên tai']},
+  rear: {breath: 'Thở ra khi kéo ra, hít vào khi về.', mistakes: ['Dùng tạ quá nặng', 'Nhún vai', 'Giật nhanh']},
+  bi: {breath: 'Thở ra khi cuốn lên, hít vào khi hạ.', mistakes: ['Đung đưa người', 'Khuỷu tay chạy ra trước', 'Hạ quá nhanh']},
+  tri: {breath: 'Thở ra khi duỗi tay, hít vào khi co.', mistakes: ['Khuỷu tay bè ra', 'Dùng vai đẩy thay vì tay sau']},
+  core: {breath: 'Thở đều, không nín thở; siết bụng như sắp bị đấm.', mistakes: ['Võng lưng dưới', 'Nín thở', 'Làm nhanh, mất kiểm soát']},
+  balance: {breath: 'Thở chậm, nhìn cố định một điểm trước mặt.', mistakes: ['Không đứng gần tường', 'Khóa cứng gối chân trụ']}
+};
+
 BRAIN.EXERCISES = (() => {
   const E = (id, slot, name, equip, lvl, avoid, cue, o = {}) => ({id, slot, name, equip: equip.split('+'), lvl, avoid: avoid || [], cue, time: !!o.time, muscles: o.m || null});
   return [

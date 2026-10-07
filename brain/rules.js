@@ -95,9 +95,9 @@ BRAIN.RULES = (() => {
     R('coach', 3, (p, c) => c.log && c.log.loggedDays >= 3 && c.log.protPct >= 0.9,
       (p, c) => `Đạm đạt ${f0(c.log.protPct * 100)}% mục tiêu 👍 Đây là yếu tố quan trọng nhất để giữ cơ khi giảm cân.`),
     R('coach', 3, (p, c) => c.log && c.log.weekendExtra > 300,
-      (p, c) => `Cuối tuần bạn ăn nhiều hơn ngày thường khoảng <b>${f0(c.log.weekendExtra)} kcal/ngày</b>. Có thể chừa ra 100–150 kcal mỗi ngày trong tuần, hoặc lên trước thực đơn cho cuối tuần.`),
+      (p, c) => `Cuối tuần bạn ăn nhiều hơn ngày thường khoảng <b>${f0(c.log.weekendExtra)} kcal/ngày</b>. Có thể chừa ra 100–150 kcal mỗi ngày trong tuần, hoặc chọn trước món ăn cho cuối tuần.`),
     R('coach', 2, (p, c) => c.log && c.log.trend !== null && c.dir < 0 && c.log.trend > -0.1,
-      'Cân gần như đứng yên trong 2 tuần qua. Nếu bạn đã ghi chép đủ, hãy giảm 100–150 kcal/ngày hoặc đi thêm 2.000 bước. Xem thẻ "Hiệu chỉnh theo dữ liệu thực tế" ở tab Kế hoạch.'),
+      'Cân gần như đứng yên trong 2 tuần qua. Nếu bạn đã ghi chép đủ, hãy giảm 100–150 kcal/ngày hoặc đi thêm 2.000 bước. Xem thẻ "Hiệu chỉnh theo dữ liệu thực tế" ở tab Dinh dưỡng.'),
     R('coach', 2, (p, c) => c.log && c.log.trend !== null && c.dir < 0 && c.log.trend < -c.w * 0.01,
       (p, c) => `Bạn đang giảm ${f1(-c.log.trend)} kg/tuần, <b>nhanh hơn mức an toàn</b> (khoảng 1% cân nặng). Hãy ăn thêm 150–200 kcal/ngày để giữ cơ.`),
     R('coach', 3, (p, c) => c.log && c.log.trend !== null && c.dir < 0 && c.log.trend <= -0.2 && c.log.trend >= -c.w * 0.01,
@@ -110,6 +110,12 @@ BRAIN.RULES = (() => {
       (p, c) => `Đã ${c.log.lastWeighAgo} ngày bạn chưa cân. Cân 3–4 buổi sáng mỗi tuần để HLV theo dõi xu hướng chính xác.`),
     R('coach', 4, (p, c) => c.log && c.log.waterDays >= 3 && c.log.waterAvg < c.log.waterGoal * 0.6,
       (p, c) => `Bạn uống trung bình ${f1(c.log.waterAvg)}/${c.log.waterGoal} ly nước mỗi ngày. Để sẵn 1 chai nước trên bàn làm việc và uống 1 ly trước mỗi bữa.`),
+    R('coach', 2, (p, c) => c.log && c.log.rpes.length >= 2 && c.log.rpes[0] === 'hard' && c.log.rpes[1] === 'hard',
+      '2 buổi gần nhất bạn thấy <b>rất nặng</b>. Buổi tới hãy bớt 1 hiệp mỗi bài hoặc giảm 5–10% mức tạ, ngủ đủ 7 tiếng. Cơ bắp lớn lên trong lúc nghỉ.'),
+    R('coach', 3, (p, c) => c.log && c.log.rpes.length >= 2 && c.log.rpes[0] === 'easy' && c.log.rpes[1] === 'easy',
+      '2 buổi gần nhất đều <b>nhẹ nhàng</b>: buổi tới hãy tăng tạ hoặc chuyển sang bài khó hơn một bậc.'),
+    R('coach', 3, (p, c) => c.log && c.log.prs7 > 0,
+      (p, c) => `🏆 Tuần này bạn đã phá <b>${c.log.prs7} kỷ lục cá nhân</b>. Tiến bộ thật sự!`),
     R('coach', 4, (p, c) => c.log && c.log.streak >= 3,
       (p, c) => `🔥 Chuỗi <b>${c.log.streak} ngày</b> ghi chép liên tục! Đều đặn quan trọng hơn hoàn hảo.`),
 
@@ -130,7 +136,8 @@ BRAIN.RULES = (() => {
       'Tuần đầu bạn sẽ bị đau mỏi cơ 1–3 ngày sau tập (DOMS). Đây là bình thường, vẫn nên đi bộ nhẹ để mau hồi phục.'),
     R('train', 4, () => true,
       (p, c) => `<b>Bước chân tuần này: ${f0(c.stepsNow)} bước/ngày.</b> ${c.stepsNow < c.stepsGoal ? `Cứ 2 tuần tăng thêm 1.000 bước cho tới ${f0(c.stepsGoal)}.` : 'Đã đạt mức mục tiêu, hãy duy trì.'} Đây là phần đốt calo hay bị bỏ quên nhất.`),
-    R('train', 5, () => true, 'Thấy bài quá khó hay quá dễ? Ở tab Lịch tập, mỗi bài đều có gợi ý bài <b>dễ hơn</b> và <b>khó hơn</b> cùng nhóm cơ để thay.'),
+    R('train', 5, () => true, 'Thấy bài quá khó hay quá dễ? Mỗi bài đều có gợi ý bài <b>dễ hơn</b> và <b>khó hơn</b> cùng nhóm cơ, đổi được ngay trong lúc tập.'),
+    R('train', 3, () => true, '<b>Ghi số kg và số lần mỗi hiệp</b> khi tập (chỉ cần chỉnh rồi bấm "Xong hiệp"): app sẽ tự gợi ý mức tạ cho buổi sau và báo khi bạn phá kỷ lục.'),
     R('train', 5, () => true, 'Đau nhói ở khớp (khác với mỏi cơ) thì dừng bài đó ngay và thay bằng bài nhẹ hơn trong cùng nhóm.'),
     R('train', 6, p => +p.len <= 30, 'Buổi tập ngắn: làm theo vòng (circuit). Tập lần lượt từng bài, nghỉ 30–45 giây giữa các bài, lặp lại số vòng bằng số hiệp.'),
     R('train', 6, p => p.time === 'am', 'Tập sáng sớm: nếu thấy mệt, ăn nhẹ 1 quả chuối hoặc 1 hộp sữa trước 30 phút, rồi ăn sáng đầy đủ sau khi tập.'),
@@ -196,7 +203,7 @@ BRAIN.RULES = (() => {
     /* ================= ĂN NGOÀI / NẤU ĂN ================= */
     R('out', 1, p => p.cook !== 'self', '<b>Chọn món nước</b> (phở, bún, hủ tiếu) thay vì cơm chiên, mì xào. Xin thêm rau, ít bánh, chừa lại nước béo.'),
     R('out', 1, p => p.cook !== 'self', (p, c) => `<b>Cơm phần:</b> chọn 1 món đạm luộc, kho hoặc nướng, 1 món rau, ${f1(c.chen)} chén cơm. Không chan nước mỡ.`),
-    R('out', 2, p => p.cook !== 'self', 'Mỗi món trong thực đơn gợi ý đều kèm <b>mẹo gọi món</b> (ví dụ: xin ít bánh, bỏ mỡ hành). Thói quen nhỏ này bớt được 100–200 kcal mỗi bữa.'),
+    R('out', 2, p => p.cook !== 'self', 'Tra món ở tab Dinh dưỡng: nhiều món kèm <b>mẹo gọi món</b> (ví dụ: xin ít bánh, bỏ mỡ hành). Thói quen nhỏ này bớt được 100–200 kcal mỗi bữa.'),
     R('out', 3, p => p.cook === 'out', 'Chuẩn bị sẵn bữa phụ (trứng luộc, sữa chua, trái cây) để không phải mua đồ ăn vặt khi đói.'),
     R('out', 3, p => p.cook === 'some', 'Những hôm có thời gian, hãy tự nấu bữa tối. Đó là bữa dễ kiểm soát nhất trong ngày.'),
     R('out', 1, p => p.cook === 'self', 'Nấu sẵn đồ ăn vào Chủ nhật và Thứ 4: luộc hoặc ướp sẵn đạm, rửa sẵn rau, chia cơm vào hộp theo đúng số chén.'),
@@ -206,8 +213,8 @@ BRAIN.RULES = (() => {
     /* ================= MÓN KHOÁI KHẨU ================= */
     R('fav', 1, p => (p.fav || '').trim(), p => p.fav.split(',').map(s => s.trim()).filter(Boolean).map(name => {
       const low = name.toLowerCase();
-      const m = BRAIN.FOODS.find(x => x[0].toLowerCase().includes(low) || low.includes(x[0].toLowerCase()));
-      return `<b>${name.replace(/[<>&"']/g, '')}</b>${m ? ` (~${m[2]} kcal / ${m[1]})` : ''}: vẫn ăn được, 1–2 lần/tuần. Ghi vào app <i>trước</i> khi ăn để biết còn bao nhiêu calo, và giảm tinh bột ở bữa đó.`;
+      const m = BRAIN.FOOD_DB.find(x => x.n.toLowerCase().includes(low) || low.includes(x.n.toLowerCase()));
+      return `<b>${name.replace(/[<>&"']/g, '')}</b>${m ? ` (~${m.kcal} kcal / ${m.unit})` : ''}: vẫn ăn được, 1–2 lần/tuần. Ghi vào app <i>trước</i> khi ăn để biết còn bao nhiêu calo, và giảm tinh bột ở bữa đó.${m && m.alt ? ` Mẹo: ${m.alt.toLowerCase()}.` : ''}`;
     })),
 
     /* ================= THEO DÕI ================= */

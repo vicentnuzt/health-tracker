@@ -5,10 +5,10 @@
    - Font Google: lưu lại sau lần tải đầu.
    Khi sửa code, tăng số phiên bản CACHE để máy người dùng tải bản mới.
    ===================================================================== */
-const CACHE = 'scn-app-v5';
+const CACHE = 'scn-app-v6';
 const FONT_CACHE = 'scn-fonts';
 const ASSETS = [
-  './', 'index.html', 'app.js', 'engine.js',
+  './', 'index.html', 'app.js', 'engine.js', 'audio.js', 'player.js',
   'brain/exercises.js', 'brain/programs.js', 'brain/nutrition.js', 'brain/rules.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'
 ];

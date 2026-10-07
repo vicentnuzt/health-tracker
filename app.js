@@ -76,7 +76,9 @@ const DEFAULTS = {sex: '', age: '', height: '', weight: '', waist: '', special: 
 const optLabel = (id, v) => { const f = FIELDS.find(x => x.id === id); const o = f && f.opts && f.opts.find(x => x[0] === v); return o ? o[1] : v; };
 
 /* ---------------- Trạng thái ---------------- */
-function blank() { return {profile: null, days: {}, weights: {}, customFoods: []}; }
+function blank() { return {profile: null, days: {}, weights: {}, customFoods: [], lifts: {}, settings: {}}; }
+// Cài đặt âm thanh khi tập (giọng HLV, kiểu nhạc, âm lượng, link playlist riêng)
+function settings() { state.settings = Object.assign({voice: true, music: 'edm', volume: 0.6, playlist: ''}, state.settings || {}); return state.settings; }
 let state = blank();
 try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
 migrate();
@@ -129,11 +131,10 @@ function totals(d) {
 }
 const doneOn = d => (dayData(d).ex || []).some(e => e.planned);
 const getPlan = (d = today(), withLog = false) => ENGINE.analyze(state.profile, weightOn(d), d, withLog ? state : null);
-const allFoods = () => [...state.customFoods.map(f => [f.name, f.unit || '1 phần', f.kcal, f.p, f.c, f.f, true]), ...BRAIN.FOODS];
+const allFoods = () => ENGINE.foods(state.customFoods);
 
 let sel = today();
-let planSub = 'overview';
-let menuDay = weekIdx(today());
+let planSub = 'week';
 let foodBase = null;
 
 let toastT;
@@ -264,7 +265,7 @@ function finishWizard() {
   runAnalysis(() => {
     closeWizard();
     renderFoodList();
-    planSub = 'overview';
+    planSub = 'cycle';
     renderAll();
     showTab('plan');
   });
@@ -273,7 +274,7 @@ function finishWizard() {
 // Màn "HLV đang phân tích": mô tả đúng các bước bộ máy thực hiện
 function runAnalysis(done) {
   const steps = ['Tính nhu cầu năng lượng', `Chọn bài từ ${BRAIN.EXERCISES.length} bài tập`, 'Xếp lịch chu kỳ 12 tuần',
-    `Lập thực đơn từ ${BRAIN.DISHES.length} món Việt`, `Áp dụng ${BRAIN.RULES.length} quy tắc của HLV`];
+    `Phân loại ${BRAIN.FOOD_DB.length} món Việt nên ăn / hạn chế`, `Áp dụng ${BRAIN.RULES.length} quy tắc của HLV`];
   const fast = matchMedia('(prefers-reduced-motion: reduce)').matches;
   $('#wizard').classList.add('hidden');
   $('#analyzing').classList.remove('hidden');
@@ -313,8 +314,7 @@ function ring(eaten, budget) {
       stroke-dasharray="${C * pct} ${C}" transform="rotate(-90 74 74)"/></svg>
     <div class="lbl"><span class="big num ${over ? 'over' : ''}">${fmt(Math.abs(budget - eaten))}</span><span class="small muted" style="font-weight:700">${over ? 'kcal vượt' : 'kcal còn lại'}</span></div>`;
 }
-const macroBar = (name, val, goal, color) => `<div><div class="top"><span>${name}</span><span class="muted num">${r0(val)} / ${goal} g</span></div>
-  <div class="bar"><i style="width:${goal > 0 ? Math.min(val / goal * 100, 100) : 0}%;background:${color}"></i></div></div>`;
+const bar = (val, goal, color) => `<div class="bar"><i style="width:${goal > 0 ? Math.min(val / goal * 100, 100) : 0}%;background:${color}"></i></div>`;
 
 function renderWeekStrip(P, wi) {
   const monday = addDays(sel, -wi), td = today();
@@ -337,11 +337,13 @@ function heroHtml(s, done, P) {
   if (s.kind === 'strength') chips.push(`💪 ${s.exercises.length} bài`);
   if (s.kind === 'cardio') chips.push(`❤️ ${s.zone.lo}–${s.zone.hi} bpm`);
   if (restOnly) chips.push(`👟 ${fmt(P.ctx.stepsNow)} bước`);
+  const lifts = state.lifts || {};
   const lines = s.kind === 'strength'
-    ? s.exercises.slice(0, 3).map(e => `${e.name} · ${e.sets} × ${e.reps}`).concat(s.exercises.length > 3 ? [`và ${s.exercises.length - 3} bài nữa`] : [])
+    ? s.exercises.slice(0, 4).map(e => `${e.name} · ${e.sets} × ${e.reps}${ENGINE.suggest(e, lifts[e.id]).up ? ' 📈' : ''}`)
+      .concat(s.exercises.length > 4 ? [`và ${s.exercises.length - 4} bài nữa`] : [])
     : s.items;
-  const btns = restOnly ? '<button class="btn btn-glass" data-act="openPlan" data-sub="train">Xem lịch cả tuần ›</button>'
-    : done ? '<span class="done-badge">✓ Đã hoàn thành</span>'
+  const btns = restOnly ? '<button class="btn btn-glass" data-act="openPlan" data-sub="week">Xem lịch cả tuần ›</button>'
+    : done ? '<span class="done-badge">✓ Đã hoàn thành</span><button class="btn btn-glass" data-act="startWorkout">Tập lại</button>'
     : '<button class="btn btn-white btn-lg" data-act="startWorkout">▶ Bắt đầu tập</button><button class="btn btn-glass" data-act="doneSession">✓ Đã tập</button>';
   return `<div class="hero ${cls}"><span class="wm" aria-hidden="true">${s.emoji}</span>
     <div class="eyebrow">${esc(eyebrow)}</div><div class="display title">${esc(s.title)}</div>
@@ -360,10 +362,6 @@ function coachHtml(P, max) {
   </div>`;
 }
 
-const fuelHtml = wk => `<div class="fuel"><div><span class="eyebrow">⚡ Trước tập</span><b>${esc(wk.pre)}</b>${esc(wk.preWhen)}</div>
-  <div><span class="eyebrow">💪 Sau tập</span><b>${esc(wk.post)}</b>${esc(wk.postWhen)}</div></div>`;
-const tipOf = m => { const t = m.items.find(x => x.tip); return t ? `<div class="small muted">💡 ${esc(t.tip)}</div>` : ''; };
-
 function renderToday() {
   const P = getPlan(sel, true), c = P.ctx, wi = weekIdx(sel), day = dayData(sel), t = totals(sel);
   $('#selDate').textContent = sel === today() ? 'Hôm nay' : DAYS[wi];
@@ -374,14 +372,11 @@ function renderToday() {
   $('#coachCard').innerHTML = coachHtml(P, 3);
 
   const dayTarget = c.dayTargets[wi], credit = r0(t.extra * EXTRA_CREDIT), budget = dayTarget + credit;
-  $('#dayTag').innerHTML = s.kind === 'rest' && !s.minutes ? '<span class="pill lime">Ngày nghỉ</span>' : '<span class="pill">Ngày tập</span>';
   $('#ring').innerHTML = ring(t.kcal, budget);
   $('#todayStats').innerHTML = `
-    <div class="tile"><span class="small muted">Mục tiêu</span><b>${fmt(dayTarget)}</b></div>
+    <div class="tile"><span class="small muted">Mục tiêu${credit ? ' (+vận động)' : ''}</span><b>${fmt(budget)}</b></div>
     <div class="tile"><span class="small muted">Đã ăn</span><b>${fmt(t.kcal)}</b></div>
-    <div class="tile"><span class="small muted">Vận động thêm</span><b>+${fmt(credit)}</b></div>
-    <div class="tile"><span class="small muted">Khẩu phần</span><b>${fmt(budget)}</b></div>`;
-  $('#macros').innerHTML = macroBar('Đạm', t.p, c.protein, 'var(--p)') + macroBar('Tinh bột', t.c, c.carb, 'var(--c)') + macroBar('Chất béo', t.f, c.fat, 'var(--f)');
+    <div class="tile" style="grid-column:span 2"><span class="small muted">Đạm ${r0(t.p)} / ${c.protein} g</span>${bar(t.p, c.protein, 'var(--p)')}</div>`;
 
   const wNow = weightOn(sel), wPrev = sortedWeights().filter(e => e.d <= addDays(sel, -7)).pop();
   $('#wNow').textContent = `${fmt1(wNow)} kg`;
@@ -393,24 +388,6 @@ function renderToday() {
     `<span class="small muted num" style="margin-left:6px;font-weight:700">${day.water}/${wg} ly</span>`;
   $('#stepsLine').innerHTML = `👟 Mục tiêu <b>${fmt(c.stepsNow)} bước</b> hôm nay`;
 
-  const menu = P.menu(wi);
-  $('#todayMenu').innerHTML = `<div class="card-title"><h2>🍽 Thực đơn gợi ý</h2><button class="btn btn-ghost btn-sm" data-act="openPlan" data-sub="menu">Cả tuần ›</button></div>
-    <div class="small muted" style="margin-bottom:8px">Bấm "+ Ghi" nếu bạn ăn đúng món gợi ý, app tự thêm vào nhật ký.</div>
-    ${menu.workout ? fuelHtml(menu.workout) : ''}
-    ${menu.meals.map((m, i) => `<div class="meal"><div class="h"><span>${m.label} <span class="muted small num">· ${fmt(m.kcal)} kcal</span></span>
-      <button class="btn btn-ghost btn-sm" data-act="logMenu" data-i="${i}">+ Ghi</button></div>
-      <div class="small" style="margin-top:4px;font-weight:600">${m.items.map(x => esc(x.n)).join(' + ') || '—'}</div>${tipOf(m)}${m.note ? `<div class="small muted">${m.note}</div>` : ''}</div>`).join('')}
-    ${menu.tip ? `<div class="small muted">💡 ${menu.tip}</div>` : ''}`;
-
-  const groups = Object.entries(MEALS).map(([k, label]) => {
-    const items = day.meals.filter(m => m.meal === k);
-    if (!items.length) return '';
-    return `<h3>${label} · ${fmt(items.reduce((a, m) => a + m.kcal, 0))} kcal</h3><ul class="list">${items.map(m => `
-      <li><div class="name">${esc(m.name)}${m.qty !== 1 ? ` <span class="muted">×${m.qty}</span>` : ''}
-        <div class="small muted">Đạm ${fmt1(m.p)}g · Tinh bột ${fmt1(m.c)}g · Béo ${fmt1(m.f)}g</div></div>
-        <span class="kc">${fmt(m.kcal)}</span><button class="icon-x" data-act="delMeal" data-id="${m.id}" aria-label="Xóa">✕</button></li>`).join('')}</ul>`;
-  }).join('');
-  $('#mealList').innerHTML = groups || '<div class="muted small">Chưa ghi món nào.</div>';
   $('#exList').innerHTML = day.ex.length ? day.ex.map(e => `
     <li><div class="name">${esc(e.name)} <span class="muted">· ${e.min} phút</span>${e.planned ? ' <span class="pill">trong lịch</span>' : ''}</div>
     <span class="kc">−${fmt(e.kcal)}</span><button class="icon-x" data-act="delEx" data-id="${e.id}" aria-label="Xóa">✕</button></li>`).join('')
@@ -419,16 +396,22 @@ function renderToday() {
 }
 
 /* =====================================================================
-   KẾ HOẠCH
+   LỊCH TẬP
    ===================================================================== */
 const ruleList = (rules, cat) => { const r = rules.filter(x => x.cat === cat); return r.length ? `<ul class="rules">${r.map(x => `<li>${x.text}</li>`).join('')}</ul>` : ''; };
+const ytLink = name => `https://www.youtube.com/results?search_query=${encodeURIComponent(name.replace(/\([^)]*\)/g, '').trim() + ' hướng dẫn kỹ thuật')}`;
 
 function exRow(e, i) {
+  const hist = (state.lifts || {})[e.id] || [], sg = ENGINE.suggest(e, hist), g = BRAIN.SLOT_GUIDE[e.slot] || {};
   const alt = e.easier || e.harder ? `<div class="alt">${e.easier ? `↓ Dễ hơn: <b>${esc(e.easier.name)}</b>` : ''}${e.easier && e.harder ? ' · ' : ''}${e.harder ? `↑ Khó hơn: <b>${esc(e.harder.name)}</b>` : ''}</div>` : '';
   return `<li class="exrow"><span class="exnum">${i + 1}</span><div>
     <div class="exname">${esc(e.name)}</div>
     <div class="exmeta"><span class="tag">${esc(e.sets)} × ${esc(e.reps)}</span><span class="tag">nghỉ ${esc(e.rest)}</span>${e.equip ? `<span class="tag eq">🧰 ${esc(e.equip)}</span>` : ''}<span class="muscle">${esc(e.muscles)}</span></div>
-    <span class="cue">${esc(e.cue)}</span>${alt}</div></li>`;
+    <span class="cue">${esc(e.cue)}</span>
+    ${sg.last ? `<div class="lastperf">${sg.up ? '📈' : '🎯'} ${esc(sg.text)}</div>` : ''}${alt}
+    <details class="exguide"><summary>Cách thở · lỗi thường gặp · video</summary>
+      ${g.breath ? `<div>🌬️ ${esc(g.breath)}</div>` : ''}${g.mistakes ? `<div>⚠️ Tránh: ${g.mistakes.map(esc).join(' · ')}</div>` : ''}
+      <a href="${ytLink(e.name)}" target="_blank" rel="noopener">▶ Xem video hướng dẫn</a></details></div></li>`;
 }
 
 function dayCard(w, now) {
@@ -442,20 +425,30 @@ function dayCard(w, now) {
     body = (w.warmup ? det('🔥 Khởi động', w.warmup) : '') + `<ul class="rules small" style="margin-top:8px">${w.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` + (w.cooldown ? det('🧊 Thả lỏng', w.cooldown) : '');
   }
   return `<div class="card dcard ${k} ${w.day === now ? 'now' : ''}">
-    <div class="dhead"><div><div class="eyebrow">${DAYS[w.day]}${w.day === now ? ' · <span class="pill">hôm nay</span>' : ''}</div>
+    <div class="dhead"><div><div class="eyebrow">${DAYS[w.day]}${w.day === now ? ' · <span class="pill">hôm nay</span>' : ''}${doneOn(addDays(today(), w.day - now)) ? ' · <span class="pill lime">✓ đã tập</span>' : ''}</div>
       <div class="display dtitle">${w.emoji} ${esc(w.title)}</div></div>
       ${w.minutes ? `<div class="small muted num" style="text-align:right;font-weight:700">${w.minutes} phút<br>~${fmt(w.kcal)} kcal</div>` : ''}</div>
     ${body}
-    ${w.minutes ? `<div class="row" style="margin-top:12px"><button class="btn btn-primary btn-sm" data-act="startWorkout" data-day="${w.day}">▶ Tập buổi này</button></div>` : ''}
+    ${w.minutes ? `<div class="row" style="margin-top:12px"><button class="btn btn-primary" data-act="startWorkout" data-day="${w.day}">▶ Tập buổi này</button></div>` : ''}
   </div>`;
 }
 
 function renderPlan() {
-  $$('.seg button').forEach(b => b.classList.toggle('on', b.dataset.sub === planSub));
+  $$('#tab-plan .seg button').forEach(b => b.classList.toggle('on', b.dataset.sub === planSub));
   const P = getPlan(today(), true), c = P.ctx, p = state.profile;
   let html = '';
 
-  if (planSub === 'overview') {
+  if (planSub === 'week') {
+    const now = weekIdx(today());
+    html += `<div class="card"><div class="eyebrow">Tuần ${P.phase.programWeek} · ${esc(P.phase.name)} · RIR ${P.phase.rir}</div>
+      <div class="display" style="font-size:26px;margin:4px 0 10px">Lịch tập tuần này</div>
+      <div class="row"><span class="tag">${p.days} buổi/tuần</span><span class="tag">${fmt(c.weeklyMin)} phút/tuần</span>
+      <span class="tag eq">🧰 ${esc(c.equipNames.length ? c.equipNames.join(', ') : 'Tập tay không')}</span></div>
+      ${P.phase.weekNote ? `<div class="bubble goal" style="margin-top:10px">🎯 <b>Tuần này:</b> ${esc(P.phase.weekNote)}</div>` : ''}</div>`;
+    html += P.week.map(w => dayCard(w, now)).join('');
+  }
+
+  if (planSub === 'cycle') {
     const ph = P.phase;
     const cells = Array.from({length: 12}, (_, i) => { const x = BRAIN.PHASES.find(q => i + 1 >= q.from && i + 1 <= q.to); return `<i class="${x.key} ${i + 1 === ph.cycleWeek ? 'now' : ''}" title="Tuần ${i + 1}: ${x.name}"></i>`; }).join('');
     html += `<div class="card"><div class="eyebrow">Chu kỳ ${ph.cycle} · tuần ${ph.cycleWeek}/12 · bắt đầu ${fullDate(p.startDate)}</div>
@@ -464,70 +457,148 @@ function renderPlan() {
       <div class="legend">${BRAIN.PHASES.map(x => `<span><i class="${x.key}"></i>${x.name}</span>`).join('')}</div>
       <p style="margin:12px 0 0">${esc(ph.desc)}</p>
       ${ph.weekNote ? `<div class="bubble goal" style="margin-top:10px">🎯 <b>Tuần này:</b> ${esc(ph.weekNote)}</div>` : ''}</div>`;
-    const trainT = P.week.filter(d => d.kind !== 'rest').map(d => c.dayTargets[d.day]);
-    const restT = P.week.filter(d => d.kind === 'rest').map(d => c.dayTargets[d.day]);
-    const avgArr = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
     html += `<div class="card"><h2>🎯 Con số của bạn</h2><div class="tiles3">
-      <div class="tile"><span class="small muted">Calo trung bình</span><b>${fmt(c.target)}</b></div>
-      <div class="tile"><span class="small muted">Ngày tập / nghỉ</span><b>${fmt(avgArr(trainT))} / ${fmt(avgArr(restT))}</b></div>
-      <div class="tile"><span class="small muted">Đạm / TB / Béo</span><b>${c.protein}/${c.carb}/${c.fat}g</b></div>
-      <div class="tile"><span class="small muted">Nước</span><b>${fmt1(c.water)} lít</b></div>
+      <div class="tile"><span class="small muted">Buổi / tuần</span><b>${p.days} × ${p.len}′</b></div>
+      <div class="tile"><span class="small muted">Mức gắng sức</span><b>RIR ${ph.rir}</b></div>
       <div class="tile"><span class="small muted">Bước chân</span><b>${fmt(c.stepsNow)}</b></div>
+      <div class="tile"><span class="small muted">Calo / ngày</span><b>${fmt(c.target)}</b></div>
+      <div class="tile"><span class="small muted">Đạm / ngày</span><b>${c.protein}g</b></div>
       <div class="tile"><span class="small muted">${c.dir === 0 ? 'Mục tiêu' : 'Dự kiến đạt'}</span><b>${c.dir === 0 ? 'Giữ cân' : c.eta ? fullDate(c.eta) : '—'}</b></div></div></div>`;
-    const ad = ENGINE.adaptive(state, p, c.tdee - (p.tdeeAdjust || 0));
-    if (ad) {
-      const big = Math.abs(ad.offset) >= 100;
-      html += `<div class="card"><h2>📊 Hiệu chỉnh theo dữ liệu thực tế</h2>
-        <div>Trong ${ad.days} ngày có ghi chép: bạn ăn trung bình <b>${fmt(ad.avg)} kcal</b> và cân thay đổi <b>${ad.perWeek > 0 ? '+' : ''}${fmt1(ad.perWeek)} kg/tuần</b>.
-        Mức tiêu hao thực tế khoảng <b>${fmt(ad.real)} kcal</b>, ${big ? `chênh <b>${ad.offset > 0 ? '+' : ''}${fmt(ad.offset)} kcal</b> so với công thức.` : 'khớp với công thức 👍'}</div>
-        ${big || p.tdeeAdjust ? `<div class="row" style="margin-top:10px">${big ? `<button class="btn btn-primary" data-act="applyAdaptive" data-v="${ad.offset}">Áp dụng hiệu chỉnh</button>` : ''}
-        ${p.tdeeAdjust ? '<button class="btn btn-ghost" data-act="applyAdaptive" data-v="0">Bỏ hiệu chỉnh</button>' : ''}</div>` : ''}</div>`;
-    }
     html += coachHtml(P, 12);
     const safety = P.rules.filter(r => r.cat === 'safety');
     html += `<div class="card"><h2>🔍 Phân tích</h2>${safety.map(r => `<div class="warnbox">⚠️ ${r.text}</div>`).join('')}
       <div style="margin-top:${safety.length ? 10 : 0}px">${ruleList(P.rules, 'insight')}</div></div>`;
   }
 
-  if (planSub === 'train') {
-    const now = weekIdx(today());
-    html += `<div class="card"><div class="eyebrow">Tuần ${P.phase.programWeek} · ${esc(P.phase.name)}</div>
-      <div class="display" style="font-size:26px;margin:4px 0 10px">Lịch tập tuần này</div>
-      <div class="row"><span class="tag">${p.days} buổi/tuần</span><span class="tag">${fmt(c.weeklyMin)} phút/tuần</span><span class="tag">RIR ${P.phase.rir}</span>
-      <span class="tag eq">🧰 ${esc(c.equipNames.length ? c.equipNames.join(', ') : 'Tập tay không')}</span></div>
-      <div class="small muted" style="margin-top:8px">${c.equipCount} bài tập phù hợp với dụng cụ và sức khỏe của bạn. Mua thêm dụng cụ? Cập nhật ở Cài đặt → Làm lại khảo sát.</div></div>`;
-    html += P.week.map(w => dayCard(w, now)).join('');
-    html += `<div class="card"><h2>📌 Quy tắc tập luyện</h2>${ruleList(P.rules, 'train')}</div>`;
-  }
-
-  if (planSub === 'menu') {
-    const menu = P.menu(menuDay);
-    html += `<div class="card"><h2>🍽 Thực đơn gợi ý</h2>
-      <div class="chips" style="margin-bottom:12px">${DAYS.map((d, i) => `<label class="chip"><input type="radio" name="menuDay" data-act="menuDay" data-i="${i}" ${i === menuDay ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
-      <div class="row between" style="margin-bottom:6px"><b>${DAYS[menuDay]} · mục tiêu ${fmt(menu.target)} kcal</b>${menu.training ? '<span class="pill">Ngày tập</span>' : '<span class="pill lime">Ngày nghỉ</span>'}</div>
-      ${menu.workout ? fuelHtml(menu.workout) : ''}
-      ${menu.meals.map(m => `<div class="meal"><div class="h"><span>${m.label}</span><span class="small muted num">${fmt(m.kcal)} / ${fmt(m.target)} kcal · ${fmt1(m.p)}g đạm</span></div>
-        <ul>${m.items.map(x => `<li>${esc(x.n)} <span class="muted small">· ${x.kcal} kcal</span>${x.tip ? `<div class="small muted">💡 ${esc(x.tip)}</div>` : ''}</li>`).join('')}</ul>${m.note ? `<div class="small muted">${m.note}</div>` : ''}</div>`).join('')}
-      <div class="row between" style="margin-top:6px"><b class="num">Tổng: ${fmt(menu.kcal)} kcal · ${menu.p}g đạm</b><span class="small muted">Mục tiêu đạm: ${c.protein}g</span></div>
-      ${menu.tip ? `<div class="warnbox">💡 ${menu.tip}</div>` : ''}
-      <div class="small muted" style="margin-top:8px">Calo là ước tính. Có thể đổi sang món tương đương (cùng nhóm, calo gần nhau).</div></div>`;
-    html += `<div class="card"><h2>🥩 Nguồn thực phẩm phù hợp</h2>
-      <h3 style="margin-top:0">Nguồn đạm</h3>${c.proteins.length ? `<ul class="rules">${c.proteins.map(x => `<li>${x[0]} <span class="muted">(${x[1]})</span></li>`).join('')}</ul>` : '<div class="muted small">Không còn nguồn đạm phù hợp với các lựa chọn. Hãy nới bớt hạn chế hoặc ngân sách.</div>'}
-      <h3>Nguồn tinh bột</h3><div class="small">${c.carbs.join(' · ')}</div></div>`;
-  }
-
   if (planSub === 'rules') {
-    const sec = (title, cat) => { const h = ruleList(P.rules, cat); return h ? `<div class="card"><h2>${title}</h2>${h}</div>` : ''; };
-    html += sec('🍽 Quy tắc ăn uống', 'eat') + sec('🔁 Sửa thói quen', 'habit') + sec(p.cook === 'self' ? '🍳 Mẹo nấu ăn' : '🥡 Ăn ngoài thông minh', 'out') +
-      sec('😋 Món khoái khẩu', 'fav') + sec('📏 Theo dõi & điều chỉnh', 'check');
+    html += `<div class="card"><h2>📌 Quy tắc tập luyện</h2>${ruleList(P.rules, 'train')}</div>`;
+    html += `<div class="card"><h2>📏 Theo dõi & điều chỉnh</h2>${ruleList(P.rules, 'check')}</div>`;
   }
-  html += '<div class="small muted" style="margin:4px 4px 0">Kế hoạch được lập theo các nguyên tắc dinh dưỡng và tập luyện phổ biến, chỉ mang tính tham khảo, không thay thế tư vấn của bác sĩ hay huấn luyện viên.</div>';
+  html += '<div class="small muted" style="margin:4px 4px 0">Kế hoạch được lập theo các nguyên tắc tập luyện và dinh dưỡng phổ biến, chỉ mang tính tham khảo, không thay thế tư vấn của bác sĩ hay huấn luyện viên.</div>';
   $('#planBody').innerHTML = html;
 }
 
 /* =====================================================================
-   CÂN NẶNG
+   DINH DƯỠNG
    ===================================================================== */
+let foodCat = '';
+const foodLists = {res: [], good: [], limit: []};
+
+function foodRow(x, i, list) {
+  const badge = x.flag ? `<div><span class="flag ${x.flag}">${x.flag === 'good' ? '✅ Nên ăn' : '⚠️ Hạn chế'}${x.why ? ' · ' + esc(x.why) : ''}</span></div>`
+    : x.why ? `<div class="fu">${esc(x.why)}</div>` : '';
+  return `<li class="food"><div class="fn">${esc(x.n)} <span class="fu">· ${esc(x.unit)}</span>${badge}</div>
+    <div class="fk"><b>${fmt(x.kcal)}</b><small>kcal · ${fmt1(x.p)}g đạm</small></div>
+    <button class="add" data-act="logFood" data-list="${list}" data-i="${i}" aria-label="Ghi ${esc(x.n)} vào nhật ký">+</button>
+    ${x.alt ? `<div class="fx">💡 ${x.flag === 'limit' ? 'Thay bằng: ' : 'Mẹo: '}${esc(x.alt)}</div>` : ''}</li>`;
+}
+
+function renderFoodResults() {
+  const q = $('#foodQ').value.trim();
+  $('#foodCats').innerHTML = [['', 'Tất cả'], ...(state.customFoods.length ? [['mine', '⭐ Món của tôi']] : []), ...BRAIN.FOOD_CATS.map(x => [x.id, x.name])]
+    .map(([id, n]) => `<button class="${foodCat === id ? 'on' : ''}" data-act="foodCat" data-v="${id}">${n}</button>`).join('');
+  const all = ENGINE.searchFood(q, foodCat || null, state.customFoods);
+  foodLists.res = all.slice(0, 40);
+  $('#foodResults').innerHTML = !all.length ? `<li class="muted small" style="padding:8px 0">Không tìm thấy "${esc(q)}". Bạn có thể tự nhập món ở phần Nhật ký ăn bên dưới.</li>`
+    : foodLists.res.map((x, i) => foodRow(x, i, 'res')).join('') + (all.length > 40 ? `<li class="muted small" style="padding:8px 0">Còn ${all.length - 40} món nữa, gõ thêm để lọc.</li>` : '');
+}
+
+function renderFood() {
+  const P = getPlan(sel), c = P.ctx, wi = weekIdx(sel), t = totals(sel), day = dayData(sel);
+  const dayTarget = c.dayTargets[wi] + r0(t.extra * EXTRA_CREDIT);
+  const trainT = P.week.filter(d => d.kind !== 'rest').map(d => c.dayTargets[d.day]);
+  const restT = P.week.filter(d => d.kind === 'rest').map(d => c.dayTargets[d.day]);
+  const avgArr = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  $('#foodTarget').innerHTML = `<h2>🎯 Mục tiêu dinh dưỡng</h2><div class="tiles3">
+      <div class="tile"><span class="small muted">Calo trung bình</span><b>${fmt(c.target)}</b></div>
+      <div class="tile"><span class="small muted">Ngày tập / nghỉ</span><b>${fmt(avgArr(trainT))} / ${fmt(avgArr(restT))}</b></div>
+      <div class="tile"><span class="small muted">Đạm / ngày</span><b>${c.protein}g</b></div>
+      <div class="tile"><span class="small muted">Tinh bột / béo</span><b>${c.carb} / ${c.fat}g</b></div>
+      <div class="tile"><span class="small muted">Nước</span><b>${fmt1(c.water)} lít</b></div>
+      <div class="tile"><span class="small muted">Mỗi bữa chính</span><b>~${c.perMealP}g đạm</b></div></div>
+    <div class="daybar"><div class="row between small" style="font-weight:700"><span>${sel === today() ? 'Hôm nay' : fmtDate(sel)}: ${fmt(t.kcal)} / ${fmt(dayTarget)} kcal</span><span class="muted">${r0(t.p)} / ${c.protein}g đạm</span></div>
+      ${bar(t.kcal, dayTarget, t.kcal > dayTarget ? 'var(--bad)' : 'var(--grad)')}<div style="height:6px"></div>${bar(t.p, c.protein, 'var(--p)')}</div>`;
+
+  const p = state.profile, ad = ENGINE.adaptive(state, p, c.tdee - (p.tdeeAdjust || 0));
+  $('#adaptiveCard').innerHTML = !ad ? '' : (() => {
+    const big = Math.abs(ad.offset) >= 100;
+    return `<div class="card"><h2>📊 Hiệu chỉnh theo dữ liệu thực tế</h2>
+      <div>Trong ${ad.days} ngày có ghi chép: bạn ăn trung bình <b>${fmt(ad.avg)} kcal</b> và cân thay đổi <b>${ad.perWeek > 0 ? '+' : ''}${fmt1(ad.perWeek)} kg/tuần</b>.
+      Mức tiêu hao thực tế khoảng <b>${fmt(ad.real)} kcal</b>, ${big ? `chênh <b>${ad.offset > 0 ? '+' : ''}${fmt(ad.offset)} kcal</b> so với công thức.` : 'khớp với công thức 👍'}</div>
+      ${big || p.tdeeAdjust ? `<div class="row" style="margin-top:10px">${big ? `<button class="btn btn-primary" data-act="applyAdaptive" data-v="${ad.offset}">Áp dụng hiệu chỉnh</button>` : ''}
+      ${p.tdeeAdjust ? '<button class="btn btn-ghost" data-act="applyAdaptive" data-v="0">Bỏ hiệu chỉnh</button>' : ''}</div>` : ''}</div>`;
+  })();
+
+  renderFoodResults();
+  const adv = ENGINE.foodAdvice(p, c);
+  foodLists.good = adv.good.slice(0, 14);
+  foodLists.limit = adv.limit.slice(0, 12);
+  $('#goodNote').textContent = c.dir > 0 ? 'Giàu đạm và năng lượng, hợp để tăng cân sạch.' : 'Giàu đạm, ít calo: no lâu và giữ cơ khi giảm mỡ.';
+  $('#foodGood').innerHTML = foodLists.good.map((x, i) => foodRow(x, i, 'good')).join('');
+  $('#foodLimit').innerHTML = foodLists.limit.map((x, i) => foodRow(x, i, 'limit')).join('');
+
+  $('#logDateLbl').textContent = sel === today() ? 'Hôm nay' : fmtDate(sel);
+  const groups = Object.entries(MEALS).map(([k, label]) => {
+    const items = day.meals.filter(m => m.meal === k);
+    if (!items.length) return '';
+    return `<h3>${label} · ${fmt(items.reduce((a, m) => a + m.kcal, 0))} kcal</h3><ul class="list">${items.map(m => `
+      <li><div class="name">${esc(m.name)}${m.qty !== 1 ? ` <span class="muted">×${m.qty}</span>` : ''}
+        <div class="small muted">Đạm ${fmt1(m.p)}g · Tinh bột ${fmt1(m.c)}g · Béo ${fmt1(m.f)}g</div></div>
+        <span class="kc">${fmt(m.kcal)}</span><button class="icon-x" data-act="delMeal" data-id="${m.id}" aria-label="Xóa">✕</button></li>`).join('')}</ul>`;
+  }).join('');
+  $('#mealList').innerHTML = groups || '<div class="muted small">Chưa ghi món nào. Tra món ở trên rồi bấm <b>+</b> để ghi.</div>';
+
+  const sec = (title, cat) => { const h = ruleList(P.rules, cat); return h ? `<details class="card"><summary><b>${title}</b></summary><div style="margin-top:8px">${h}</div></details>` : ''; };
+  $('#foodRules').innerHTML = sec('🍽 Quy tắc ăn uống', 'eat') + sec('🔁 Sửa thói quen', 'habit') +
+    sec(p.cook === 'self' ? '🍳 Mẹo nấu ăn' : '🥡 Ăn ngoài thông minh', 'out') + sec('😋 Món khoái khẩu', 'fav');
+}
+
+// Ghi món vào bữa tương ứng với giờ hiện tại
+function mealByHour() { const h = new Date().getHours(); return h < 10 ? 'sang' : h < 14 ? 'trua' : h < 17 ? 'phu' : 'toi'; }
+
+/* =====================================================================
+   TIẾN ĐỘ
+   ===================================================================== */
+const RPE_ICON = {easy: '😌', ok: '💪', hard: '🥵'};
+function allSessions() {
+  const out = [];
+  for (const [d, x] of Object.entries(state.days)) (x.ex || []).filter(e => e.planned).forEach(e => out.push({d, ...e}));
+  return out.sort((a, b) => a.d < b.d ? 1 : -1);
+}
+function bestSet(id, hist) {
+  const e = ENGINE.exerciseById(id); if (!e) return null;
+  const ex = {weighted: e.equip.some(q => ['db', 'barbell', 'cable', 'machine'].includes(q)), time: e.time};
+  let best = null;
+  for (const h of hist) for (const s of h.s) { const sc = ENGINE.setScore(ex, s); if (!best || sc > best.sc) best = {sc, s, d: h.d}; }
+  if (!best) return null;
+  const txt = ex.weighted && best.s[0] > 0 ? `${ENGINE.fmtKg(best.s[0])} kg × ${best.s[1]}` : ex.time ? `${best.s[1]} giây` : `${best.s[1]} lần`;
+  return {name: e.name, txt, d: best.d, n: hist.length, last: hist[hist.length - 1].d};
+}
+
+function renderProgress() {
+  const ss = allSessions(), P = getPlan(today(), true), log = P.ctx.log || {};
+  const prsTotal = ss.reduce((a, x) => a + (x.prs || 0), 0);
+  $('#trainStats').innerHTML = `
+    <div class="tile"><span class="small muted">Tuần này</span><b>${log.done || 0}/${log.plannedWeek || 0} buổi</b></div>
+    <div class="tile"><span class="small muted">Tổng số buổi</span><b>${ss.length}</b></div>
+    <div class="tile"><span class="small muted">Tổng thời gian</span><b>${fmt(ss.reduce((a, x) => a + (x.min || 0), 0))}′</b></div>
+    <div class="tile"><span class="small muted">Đã nâng</span><b>${fmt(ss.reduce((a, x) => a + (x.volume || 0), 0))} kg</b></div>
+    <div class="tile"><span class="small muted">Kỷ lục đã phá</span><b>🏆 ${prsTotal}</b></div>
+    <div class="tile"><span class="small muted">Chuỗi ghi chép</span><b>🔥 ${log.streak || 0} ngày</b></div>`;
+  $('#sessList').innerHTML = ss.length ? ss.slice(0, 30).map(x => {
+    const dt = parseDs(x.d);
+    return `<div class="sess"><div class="sd"><b>${dt.getDate()}</b><small>Th${dt.getMonth() + 1}</small></div>
+      <div><div class="st">${esc(x.name.replace(/^Buổi tập: /, ''))} ${x.rpe ? RPE_ICON[x.rpe] : ''}</div>
+      <div class="sm">${DAYS[weekIdx(x.d)]} · ${x.min} phút${x.sets ? ` · ${x.sets} hiệp` : ''}${x.volume ? ` · ${fmt(x.volume)} kg` : ''}${x.prs ? ` · 🏆 ${x.prs} kỷ lục` : ''}</div></div>
+      <button class="icon-x" data-act="delSession" data-d="${x.d}" data-id="${x.id}" aria-label="Xóa buổi tập">✕</button></div>`;
+  }).join('') : '<div class="muted small">Chưa có buổi tập nào. Bấm <b>▶ Bắt đầu tập</b> ở tab Hôm nay nhé!</div>';
+  const prs = Object.entries(state.lifts || {}).map(([id, h]) => bestSet(id, h)).filter(Boolean).sort((a, b) => a.last < b.last ? 1 : -1);
+  $('#prList').innerHTML = prs.length ? prs.slice(0, 30).map(x => `<div class="pr"><div><div style="font-weight:700">${esc(x.name)}</div>
+      <div class="small muted">${x.n} buổi · đạt ngày ${fmtDate(x.d, {day: '2-digit', month: '2-digit'})}</div></div><b>${x.txt}</b></div>`).join('')
+    : '<div class="muted small">Chưa có dữ liệu. Khi tập, ghi số kg và số lần mỗi hiệp để app lưu kỷ lục.</div>';
+  renderWeight();
+}
+
 function trendEta() {
   const p = state.profile, ws = sortedWeights().slice(-21);
   if (ws.length < 4 || dayDiff(ws[0].d, ws[ws.length - 1].d) < 7) return null;
@@ -578,7 +649,7 @@ function renderWeight() {
     </div>`;
   $('#chart').innerHTML = chart();
   const ws = sortedWeights().reverse();
-  $('#wList').innerHTML = ws.length ? ws.map((e, i) => {
+  $('#wList').innerHTML = ws.length ? ws.slice(0, 40).map((e, i) => {
     const prev = ws[i + 1], d = prev ? r1(e.w - prev.w) : null;
     return `<li><div class="name">${fmtDate(e.d, {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'})}</div>
       ${d != null ? `<span class="small num ${d < 0 ? 'good' : d > 0 ? 'over' : 'muted'}">${d > 0 ? '+' : ''}${fmt1(d)}</span>` : ''}
@@ -587,33 +658,10 @@ function renderWeight() {
 }
 
 /* =====================================================================
-   LỊCH SỬ
-   ===================================================================== */
-function renderHistory() {
-  const rows = [];
-  const wk = {n: 0, kcal: 0, done: 0};
-  for (let i = 0; i < 30; i++) {
-    const d = addDays(today(), -i), x = state.days[d], t = totals(d);
-    if (i < 7 && x?.meals.length) { wk.n++; wk.kcal += t.kcal; }
-    if (i < 7 && t.planned) wk.done++;
-    if (!(x && (x.meals.length || x.ex.length || x.water)) && state.weights[d] == null) continue;
-    const budget = getPlan(d).ctx.dayTargets[weekIdx(d)] + r0(t.extra * EXTRA_CREDIT), delta = t.kcal - budget;
-    rows.push(`<tr data-act="goto" data-d="${d}" style="cursor:pointer"><td>${fmtDate(d)}</td>
-      <td>${t.kcal ? fmt(t.kcal) : '–'}</td><td>${t.planned ? '✅' : '–'}</td><td>${fmt(budget)}</td>
-      <td class="${t.kcal ? (delta > 0 ? 'over' : 'good') : ''}">${t.kcal ? (delta > 0 ? '+' : '') + fmt(delta) : '–'}</td>
-      <td>${state.weights[d] != null ? fmt1(state.weights[d]) : '–'}</td></tr>`);
-  }
-  $('#histTable').innerHTML = rows.length
-    ? `<tr><th>Ngày</th><th>Ăn</th><th>Tập</th><th>Khẩu phần</th><th>Chênh</th><th>Cân</th></tr>${rows.join('')}`
-    : '<tr><td class="muted">Chưa có dữ liệu.</td></tr>';
-  $('#weekAvg').textContent = `7 ngày qua: tập ${wk.done} buổi` + (wk.n ? ` · ${wk.n} ngày có ghi ăn uống, trung bình ${fmt(wk.kcal / wk.n)} kcal/ngày.` : '.');
-}
-
-/* =====================================================================
    CÀI ĐẶT
    ===================================================================== */
 function renderSettings() {
-  const p = state.profile;
+  const p = state.profile, st = settings();
   const many = (id, arr) => arr && arr.length ? arr.map(v => optLabel(id, v)).join(', ') : 'Không';
   const clean = s => String(s).replace(/^[^\p{L}\d]+/u, '');
   const rows = [
@@ -626,20 +674,36 @@ function renderSettings() {
     ['Dụng cụ', p.equipment && p.equipment.length ? p.equipment.map(id => (BRAIN.EQUIPMENT.find(q => q.id === id) || {name: id}).name).join(', ') : 'Không có (tập tay không)'],
     ['Ngày rảnh', p.trainDays && p.trainDays.length ? p.trainDays.map(d => DAYS_SHORT[d]).join(', ') : 'App tự xếp'],
     ['Môn yêu thích', many('sports', p.sports).replace(/[^\p{L}\d,/ ]+/gu, '').replace(/\s+/g, ' ').trim()],
-    ['Ăn uống', `${optLabel('meals', p.meals)} · ${optLabel('diet', p.diet).toLowerCase()} · ${clean(optLabel('cook', p.cook)).toLowerCase()} · ${optLabel('budget', p.budget).toLowerCase()}`],
+    ['Ăn uống', `${optLabel('meals', p.meals)} · ${optLabel('diet', p.diet).toLowerCase()} · ${clean(optLabel('cook', p.cook)).toLowerCase()}`],
     ['Không ăn', many('avoid', p.avoid)],
     ['Chu kỳ hiện tại', `bắt đầu ${fullDate(p.startDate)} từ ${fmt1(p.startWeight)} kg`]
   ];
   $('#profileSummary').innerHTML = `<ul class="list">${rows.map(([k, v]) => `<li><span class="muted small" style="min-width:110px;font-weight:700">${k}</span><span class="name">${esc(v)}</span></li>`).join('')}</ul>`;
+
+  const noVi = AUDIO.voice.supported() && !AUDIO.voice.hasVietnamese();
+  $('#soundCard').innerHTML = `<h2>🎧 Âm thanh khi tập</h2>
+    <label class="switch">🗣️ Giọng HLV đọc hướng dẫn <input type="checkbox" id="setVoice" ${st.voice ? 'checked' : ''}></label>
+    ${!AUDIO.voice.supported() ? '<div class="small muted">Trình duyệt này không hỗ trợ đọc giọng nói.</div>'
+      : noVi ? '<div class="small muted">Chưa thấy giọng tiếng Việt trên máy. Trên iPhone: Cài đặt → Trợ năng → Nội dung được đọc → Giọng nói → Tiếng Việt để tải về.</div>' : ''}
+    <div class="grid2" style="margin-top:8px">
+      <label>Nhạc khi tập <select id="setMusic">${Object.entries(AUDIO.STYLES).map(([v, x]) => `<option value="${v}" ${st.music === v ? 'selected' : ''}>${x.name}</option>`).join('')}
+        <option value="own" ${st.music === 'own' ? 'selected' : ''}>🎧 Nhạc của tôi (Spotify, Apple Music…)</option><option value="off" ${st.music === 'off' ? 'selected' : ''}>🔇 Không nhạc</option></select></label>
+      <label>Âm lượng nhạc <input type="range" id="setVol" min="0" max="1" step="0.05" value="${st.volume}"></label>
+    </div>
+    <label style="margin-top:8px">Link playlist của bạn (không bắt buộc) <input id="setPlaylist" type="url" inputmode="url" placeholder="https://open.spotify.com/playlist/…" value="${esc(st.playlist)}"></label>
+    <div class="row" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-act="testMusic">${AUDIO.music.isPlaying() ? '⏹ Dừng nhạc' : '▶ Nghe thử nhạc'}</button>
+      <button class="btn btn-ghost btn-sm" data-act="testVoice">🗣️ Thử giọng HLV</button></div>
+    <div class="small muted" style="margin-top:8px">Nhạc do app tự tạo nên không cần mạng và không vướng bản quyền; nhịp tự nhanh hơn khi tập và chậm lại khi nghỉ. Không nghe tiếng trên iPhone? Kiểm tra nút gạt im lặng và âm lượng.</div>`;
+
   $('#brainCard').innerHTML = `<h2>🧠 Bộ não HLV</h2><div class="tiles3">
     <div class="tile"><span class="small muted">Bài tập</span><b>${BRAIN.EXERCISES.length}</b></div>
-    <div class="tile"><span class="small muted">Món ăn</span><b>${BRAIN.DISHES.length + BRAIN.SNACKS.length}</b></div>
+    <div class="tile"><span class="small muted">Món ăn</span><b>${BRAIN.FOOD_DB.length}</b></div>
     <div class="tile"><span class="small muted">Quy tắc</span><b>${BRAIN.RULES.length}</b></div></div>
-    <div class="small muted" style="margin-top:10px">Toàn bộ kiến thức nằm trong thư mục <b>brain/</b>. Bạn có thể tự thêm bài tập, món ăn hay quy tắc mới (hướng dẫn trong README.md).</div>`;
+    <div class="small muted" style="margin-top:10px">Toàn bộ kiến thức nằm trong thư mục <b>brain/</b>. Có thể tự thêm bài tập, món ăn hay quy tắc mới (hướng dẫn trong README.md).</div>`;
   $('#customList').innerHTML = state.customFoods.length ? state.customFoods.map(f => `
     <li><div class="name">${esc(f.name)} <span class="muted small">(${esc(f.unit)})</span></div>
     <span class="kc">${fmt(f.kcal)} kcal</span><button class="icon-x" data-act="delFood" data-id="${f.id}" aria-label="Xóa">✕</button></li>`).join('')
-    : '<li class="muted small">Chưa có. Khi thêm món, tick "Lưu vào món của tôi" để dùng lại lần sau.</li>';
+    : '<li class="muted small">Chưa có. Khi tự nhập món, tick "Lưu vào món của tôi" để dùng lại lần sau.</li>';
 }
 
 function renderBadges() {
@@ -652,20 +716,20 @@ function renderBadges() {
    ===================================================================== */
 const EX_TYPES = [...BRAIN.CARDIO.map(c => [c.name, c.met]), ['Gym / tập tạ', 5], ['HIIT', 8], ['Đi bộ thường', 3.5], ['Làm việc nhà nặng', 3.5]];
 function renderFoodList() {
-  $('#foodList').innerHTML = allFoods().map(f => `<option value="${esc(f[0])}">${esc(f[1])} · ${f[2]} kcal${f[6] ? ' · của tôi' : ''}</option>`).join('');
+  $('#foodList').innerHTML = allFoods().map(f => `<option value="${esc(f.n)}">${esc(f.unit)} · ${f.kcal} kcal${f.mine ? ' · của tôi' : ''}</option>`).join('');
 }
 function fillFoodFields(qty) {
   if (!foodBase) return;
-  const [, unit, k, p, c, f] = foodBase;
-  $('#fKcal').value = r0(k * qty); $('#fP').value = r1(p * qty); $('#fC').value = r1(c * qty); $('#fF').value = r1(f * qty);
-  $('#fUnit').textContent = `1 phần = ${unit} · ${k} kcal (giá trị ước tính, có thể sửa)`;
+  const f = foodBase;
+  $('#fKcal').value = r0(f.kcal * qty); $('#fP').value = r1(f.p * qty); $('#fC').value = r1(f.c * qty); $('#fF').value = r1(f.f * qty);
+  $('#fUnit').textContent = `1 phần = ${f.unit} · ${f.kcal} kcal (giá trị ước tính, có thể sửa)`;
 }
 function addMeal() {
   const name = $('#fName').value.trim(), qty = num($('#fQty').value, 1) || 1;
   const m = {id: uid(), meal: $('#fMeal').value, name, qty, kcal: num($('#fKcal').value), p: num($('#fP').value), c: num($('#fC').value), f: num($('#fF').value)};
   if (!name || m.kcal <= 0) { toast('Nhập tên món và số calo'); return; }
   getDay(sel).meals.push(m);
-  if ($('#fSave').checked && !allFoods().some(f => f[0].toLowerCase() === name.toLowerCase())) {
+  if ($('#fSave').checked && !allFoods().some(f => f.n.toLowerCase() === name.toLowerCase())) {
     state.customFoods.push({id: uid(), name, unit: '1 phần', kcal: r0(m.kcal / qty), p: r1(m.p / qty), c: r1(m.c / qty), f: r1(m.f / qty)});
     renderFoodList();
   }
@@ -683,191 +747,11 @@ function addEx() {
 }
 
 /* =====================================================================
-   CHẾ ĐỘ TẬP (đếm hiệp, đồng hồ nghỉ, bấm giờ cardio)
-   ===================================================================== */
-let PL = null, plTick = null, audioCtx = null, wakeLock = null;
-
-function ensureAudio() {
-  try {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) { audioCtx = null; }
-}
-function beep(times = 2) {
-  try {
-    if (audioCtx) for (let k = 0; k < times; k++) {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t0 = audioCtx.currentTime + k * 0.25;
-      o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
-      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
-      o.start(t0); o.stop(t0 + 0.2);
-    }
-  } catch (e) {}
-  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
-}
-async function requestWake() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
-function releaseWake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
-document.addEventListener('visibilitychange', () => { if (PL && document.visibilityState === 'visible') requestWake(); });
-
-function openPlayer(s, logDate) {
-  ensureAudio();
-  const list = s.kind === 'strength' ? s.exercises.map(e => ({...e})) : [];
-  PL = {s, logDate, kind: s.kind === 'strength' ? 'strength' : 'timer', step: 'warmup', i: 0, set: 1, setsDone: 0, list,
-    totalSets: list.reduce((a, e) => a + e.setsN, 0), started: 0, ended: 0, restEnd: 0, restTotal: 0, holdStart: 0,
-    run: false, acc: 0, runFrom: 0, lastBlock: -1, alerted: false};
-  $('#player').classList.remove('hidden');
-  document.body.classList.add('noscroll');
-  requestWake();
-  renderPlayer();
-  clearInterval(plTick);
-  plTick = setInterval(tickPlayer, 250);
-}
-function closePlayer() {
-  clearInterval(plTick); plTick = null; PL = null;
-  $('#player').classList.add('hidden'); $('#player').innerHTML = '';
-  document.body.classList.remove('noscroll');
-  releaseWake();
-}
-const timerElapsed = () => PL.acc + (PL.run ? Date.now() - PL.runFrom : 0);
-const sessionMinutes = () => Math.max(1, r0((PL.kind === 'strength' ? (PL.ended || Date.now()) - PL.started : timerElapsed()) / 60000));
-const sessionKcal = min => r0((PL.kind === 'strength' ? BRAIN.STRENGTH_MET : (PL.s.met || 4) * (PL.s.interval ? 1.15 : 1)) * weightOn(PL.logDate) * min / 60);
-
-// Cardio biến tốc: khởi động → (nhanh, chậm) × n → thả lỏng
-function intervalBlock(sec, iv) {
-  const blocks = [{label: 'Khởi động', len: iv.warm}];
-  for (let r = 1; r <= iv.rounds; r++) {
-    blocks.push({label: `🔥 NHANH · lượt ${r}/${iv.rounds}`, len: iv.on, fast: true});
-    blocks.push({label: `Chậm · lượt ${r}/${iv.rounds}`, len: iv.off});
-  }
-  blocks.push({label: 'Thả lỏng', len: iv.cool});
-  let t = 0;
-  for (let i = 0; i < blocks.length; i++) {
-    if (sec < t + blocks[i].len) return {...blocks[i], idx: i, left: t + blocks[i].len - sec};
-    t += blocks[i].len;
-  }
-  return {label: 'Xong! 🎉', idx: blocks.length, left: 0};
-}
-
-function renderPlayer() {
-  if (!PL) return;
-  const s = PL.s;
-  const prog = PL.kind === 'strength' ? (PL.totalSets ? PL.setsDone / PL.totalSets : 0) : Math.min(1, timerElapsed() / (s.minutes * 60000));
-  const label = PL.step === 'warmup' ? 'Khởi động' : PL.step === 'done' ? 'Kết thúc' : PL.kind === 'strength' ? `Bài ${PL.i + 1}/${PL.list.length}` : 'Đang tập';
-  let body = '', actions = '';
-  if (PL.step === 'warmup') {
-    body = `<div class="display pl-name">Khởi động</div><div class="pl-cue">Làm chậm rãi để cơ thể ấm lên trước khi vào bài chính.</div>
-      <ul class="pl-list">${(s.warmup || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
-    actions = '<button class="btn btn-primary btn-lg" data-act="plStart">▶ Vào bài tập</button>';
-  } else if (PL.step === 'work' && PL.kind === 'strength') {
-    const e = PL.list[PL.i];
-    body = `<div class="eyebrow">${esc(e.muscles)}${e.equip ? ` · 🧰 ${esc(e.equip)}` : ''}</div><div class="display pl-name">${esc(e.name)}</div><div class="pl-cue">${esc(e.cue)}</div>
-      <div class="pl-set"><span class="display">Hiệp ${PL.set}</span><span class="pl-target" style="opacity:.6">/ ${e.setsN}</span></div>
-      <div class="pl-target">🎯 ${esc(e.reps)}</div>
-      ${e.time ? `<div class="pl-hold" id="plHold">${PL.holdStart ? '0:00' : `Mục tiêu ${mmss(e.holdSec)}`}</div>` : ''}
-      <div class="pl-alt">${e.easier ? '<button data-act="plSwap" data-to="easier">↓ Dễ hơn</button>' : ''}${e.harder ? '<button data-act="plSwap" data-to="harder">↑ Khó hơn</button>' : ''}<button data-act="plSkip">Bỏ qua bài ›</button></div>`;
-    actions = (e.time && !PL.holdStart ? '<button class="btn btn-ghost btn-lg" data-act="plHold">⏱ Bấm giờ</button>' : '') + '<button class="btn btn-primary btn-lg" data-act="plSetDone">✓ Xong hiệp</button>';
-  } else if (PL.step === 'rest') {
-    const nx = PL.list[PL.i], C = 2 * Math.PI * 104;
-    body = `<div class="eyebrow center">Nghỉ giữa hiệp</div>
-      <div class="pl-ring"><svg width="240" height="240" viewBox="0 0 240 240" aria-hidden="true">
-        <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0561a"/><stop offset="1" stop-color="#d7265f"/></linearGradient></defs>
-        <circle cx="120" cy="120" r="104" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="14"/>
-        <circle id="plRestArc" cx="120" cy="120" r="104" fill="none" stroke="url(#pg)" stroke-width="14" stroke-linecap="round" transform="rotate(-90 120 120)" stroke-dasharray="${C} ${C}"/></svg>
-        <div class="lbl"><div class="pl-count" id="plRest">0</div><div style="opacity:.6">giây</div></div></div>
-      <div class="center"><div class="eyebrow">Tiếp theo</div><b>${esc(nx.name)}</b> · Hiệp ${PL.set}/${nx.setsN} · ${esc(nx.reps)}</div>`;
-    actions = '<button class="btn btn-ghost btn-lg" data-act="plMore">+15 giây</button><button class="btn btn-primary btn-lg" data-act="plRestSkip">Bỏ qua ›</button>';
-  } else if (PL.step === 'work') {
-    body = `<div class="eyebrow center" id="plBlock">${s.interval ? '' : 'Giữ nhịp đều'}</div>
-      <div class="center"><div class="pl-count" id="plTimer">0:00</div><div style="opacity:.6" id="plTimerSub"></div></div>
-      ${s.zone ? `<div class="center"><span class="pl-chip">❤️ Nhịp tim ${s.zone.lo}–${s.zone.hi}</span></div>` : ''}
-      <ul class="pl-list">${(s.items || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
-    actions = `<button class="btn btn-ghost btn-lg" data-act="plToggle">${PL.run ? '⏸ Tạm dừng' : '▶ Tiếp tục'}</button><button class="btn btn-primary btn-lg" data-act="plFinish">✓ Kết thúc</button>`;
-  } else if (PL.step === 'done') {
-    const min = sessionMinutes(), kcal = sessionKcal(min);
-    body = `<div class="center" style="font-size:64px;line-height:1">🎉</div><div class="display pl-name center">Hoàn thành!</div>
-      <div class="pl-stats"><div><b>${min}</b>phút</div><div><b>${PL.kind === 'strength' ? PL.setsDone : mmss(Math.floor(timerElapsed() / 1000))}</b>${PL.kind === 'strength' ? 'hiệp' : 'thời gian'}</div><div><b>${fmt(kcal)}</b>kcal</div></div>
-      <div class="pl-cue center">🧊 Thả lỏng: ${esc((s.cooldown || []).join(' · '))}</div>`;
-    actions = '<button class="btn btn-ghost" data-act="plClose">Đóng</button><button class="btn btn-primary btn-lg" data-act="plSave">💾 Lưu buổi tập</button>';
-  }
-  $('#player').innerHTML = `<div class="pl-top"><div class="row between"><div><div class="eyebrow">${label}</div><b>${s.emoji} ${esc(s.title)}</b></div>
-      <button class="pl-close" data-act="plClose" aria-label="Thoát chế độ tập">✕</button></div>
-      <div class="pl-prog"><i id="plProg" style="width:${prog * 100}%"></i></div></div>
-    <div class="pl-body">${body}</div><div class="pl-actions">${actions}</div>`;
-  tickPlayer();
-}
-
-function tickPlayer() {
-  if (!PL) return;
-  const now = Date.now(), set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  if (PL.step === 'rest') {
-    set('plRest', Math.max(0, Math.ceil((PL.restEnd - now) / 1000)));
-    const arc = document.getElementById('plRestArc');
-    if (arc) { const C = 2 * Math.PI * 104; arc.setAttribute('stroke-dasharray', `${C * Math.max(0, (PL.restEnd - now) / PL.restTotal)} ${C}`); }
-    if (now >= PL.restEnd) { beep(2); PL.step = 'work'; PL.holdStart = 0; PL.alerted = false; renderPlayer(); }
-  } else if (PL.step === 'work' && PL.kind === 'strength' && PL.holdStart) {
-    const e = PL.list[PL.i], sec = Math.floor((now - PL.holdStart) / 1000), el = document.getElementById('plHold');
-    if (el) { el.textContent = mmss(sec); el.classList.toggle('ok', sec >= e.holdSec); }
-    if (sec >= e.holdSec && !PL.alerted) { PL.alerted = true; beep(1); }
-  } else if (PL.step === 'work' && PL.kind === 'timer') {
-    const s = PL.s, sec = Math.floor(timerElapsed() / 1000), target = s.minutes * 60;
-    if (s.interval) {
-      const b = intervalBlock(sec, s.intervals);
-      set('plBlock', b.label); set('plTimer', mmss(b.left)); set('plTimerSub', `Tổng ${mmss(sec)} / ${mmss(target)}`);
-      if (b.idx !== PL.lastBlock) { if (PL.lastBlock !== -1) beep(b.fast ? 3 : 1); PL.lastBlock = b.idx; }
-    } else {
-      const left = target - sec;
-      set('plTimer', mmss(Math.abs(left))); set('plTimerSub', left >= 0 ? 'còn lại' : 'vượt mục tiêu 💪');
-      if (left <= 0 && !PL.alerted) { PL.alerted = true; beep(3); }
-    }
-    const pr = document.getElementById('plProg'); if (pr) pr.style.width = Math.min(100, sec / target * 100) + '%';
-  }
-}
-
-function startRest(sec) { PL.step = 'rest'; PL.restTotal = sec * 1000; PL.restEnd = Date.now() + sec * 1000; PL.holdStart = 0; }
-function nextExercise() {
-  if (PL.i < PL.list.length - 1) { PL.i++; PL.set = 1; return true; }
-  PL.step = 'done'; PL.ended = Date.now(); return false;
-}
-
-function playerAction(a, el) {
-  const e = PL.list[PL.i];
-  if (a === 'plStart') {
-    ensureAudio(); PL.started = Date.now(); PL.step = 'work';
-    if (PL.kind === 'timer') { PL.run = true; PL.runFrom = Date.now(); }
-  } else if (a === 'plSetDone') {
-    PL.setsDone++; PL.alerted = false;
-    if (PL.set < e.setsN) { PL.set++; startRest(e.restSec); }
-    else if (nextExercise()) startRest(e.restSec);
-  } else if (a === 'plHold') { PL.holdStart = Date.now(); PL.alerted = false; }
-  else if (a === 'plSkip') { PL.holdStart = 0; if (nextExercise()) PL.step = 'work'; }
-  else if (a === 'plMore') { PL.restEnd += 15000; PL.restTotal += 15000; return; }
-  else if (a === 'plRestSkip') { PL.step = 'work'; PL.holdStart = 0; }
-  else if (a === 'plSwap') {
-    const to = e[el.dataset.to]; if (!to) return;
-    const alt = ENGINE.alternatives(to.id, state.profile);
-    PL.list[PL.i] = {...e, id: to.id, name: to.name, cue: to.cue, muscles: to.muscles, equip: to.equip, time: to.time, reps: to.time ? e.repsTime : e.repsRep, easier: alt.easier, harder: alt.harder};
-    PL.holdStart = 0;
-    toast('Đã đổi sang: ' + to.name);
-  } else if (a === 'plToggle') {
-    if (PL.run) { PL.acc += Date.now() - PL.runFrom; PL.run = false; } else { PL.run = true; PL.runFrom = Date.now(); }
-  } else if (a === 'plFinish') {
-    if (PL.run) { PL.acc += Date.now() - PL.runFrom; PL.run = false; }
-    PL.step = 'done'; PL.ended = Date.now();
-  } else if (a === 'plSave') {
-    const min = sessionMinutes();
-    getDay(PL.logDate).ex.push({id: uid(), name: 'Buổi tập: ' + PL.s.title, min, kcal: sessionKcal(min), planned: true, sets: PL.setsDone});
-    save(); closePlayer(); renderAll(); toast('Đã lưu buổi tập 💪');
-    return;
-  } else if (a === 'plClose') {
-    if (['work', 'rest'].includes(PL.step) && !confirm('Thoát buổi tập? Tiến độ sẽ không được lưu.')) return;
-    closePlayer(); return;
-  }
-  renderPlayer();
-}
-
-/* =====================================================================
    ĐIỀU HƯỚNG & SỰ KIỆN
    ===================================================================== */
+const TABS = ['today', 'plan', 'food', 'progress', 'settings'];
 function showTab(name) {
+  if (!TABS.includes(name)) name = 'today';
   $$('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + name));
   $$('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   try { localStorage.setItem(KEY + '.tab', name); } catch (e) {}
@@ -875,13 +759,14 @@ function showTab(name) {
 }
 function renderAll() {
   if (!state.profile) return;
-  renderToday(); renderPlan(); renderWeight(); renderHistory(); renderSettings(); renderBadges();
+  renderToday(); renderPlan(); renderFood(); renderProgress(); renderSettings(); renderBadges();
 }
 
+let musicTestT = null;
 document.addEventListener('click', ev => {
   const tabBtn = ev.target.closest('nav.tabs [data-tab]');
   if (tabBtn) { showTab(tabBtn.dataset.tab); return; }
-  const subBtn = ev.target.closest('.seg [data-sub]');
+  const subBtn = ev.target.closest('#tab-plan .seg [data-sub]');
   if (subBtn) { planSub = subBtn.dataset.sub; renderPlan(); return; }
   const el = ev.target.closest('[data-act]'); if (!el) return;
   const a = el.dataset.act;
@@ -899,9 +784,9 @@ document.addEventListener('click', ev => {
     const y = window.scrollY; renderWizard(); window.scrollTo(0, y);
   }
   else if (a === 'dismissInstall') { try { localStorage.setItem(KEY + '.installHint', '1'); } catch (e) {} renderInstallCard(); }
-  else if (a === 'prev') { sel = addDays(sel, -1); renderToday(); }
-  else if (a === 'next') { sel = addDays(sel, 1); renderToday(); }
-  else if (a === 'pickDay') { sel = el.dataset.d; renderToday(); }
+  else if (a === 'prev') { sel = addDays(sel, -1); renderToday(); renderFood(); }
+  else if (a === 'next') { sel = addDays(sel, 1); renderToday(); renderFood(); }
+  else if (a === 'pickDay') { sel = el.dataset.d; renderToday(); renderFood(); }
   else if (a === 'saveWeight') {
     const w = num($('#wInput').value);
     if (w < 25 || w > 350) { toast('Cân nặng không hợp lệ'); return; }
@@ -917,23 +802,38 @@ document.addEventListener('click', ev => {
     getDay(sel).ex.push({id: uid(), name: 'Buổi tập: ' + s.title, min: s.minutes, kcal: s.kcal, planned: true});
     save(); renderAll(); toast('Tuyệt vời! Đã ghi buổi tập 💪');
   }
-  else if (a === 'logMenu') {
-    const m = getPlan(sel).menu(weekIdx(sel)).meals[+el.dataset.i];
-    if (!m || !m.items.length) return;
-    getDay(sel).meals.push({id: uid(), meal: m.logKey, name: m.items.map(x => x.n).join(' + '), qty: 1, kcal: m.kcal, p: m.p, c: m.c, f: m.f});
-    save(); renderAll(); toast(`Đã ghi ${m.label.toLowerCase()}`);
+  else if (a === 'openPlan') { planSub = el.dataset.sub || 'week'; renderPlan(); showTab('plan'); }
+  else if (a === 'openFood') { renderFood(); showTab('food'); }
+  else if (a === 'foodCat') { foodCat = el.dataset.v; renderFoodResults(); }
+  else if (a === 'logFood') {
+    const x = foodLists[el.dataset.list][+el.dataset.i]; if (!x) return;
+    const meal = mealByHour();
+    getDay(sel).meals.push({id: uid(), meal, name: x.n, qty: 1, kcal: x.kcal, p: x.p, c: x.c, f: x.f});
+    save(); renderToday(); renderFood(); toast(`Đã ghi ${x.n} vào ${MEALS[meal].toLowerCase()}`);
   }
-  else if (a === 'openPlan') { planSub = el.dataset.sub || 'overview'; if (planSub === 'menu') menuDay = weekIdx(sel); renderPlan(); showTab('plan'); }
-  else if (a === 'menuDay') { menuDay = +el.dataset.i; renderPlan(); }
   else if (a === 'applyAdaptive') { state.profile.tdeeAdjust = +el.dataset.v; save(); renderAll(); toast('Đã cập nhật calo mục tiêu'); }
   else if (a === 'addMeal') addMeal();
   else if (a === 'addEx') addEx();
   else if (a === 'delMeal') { const d = getDay(sel); d.meals = d.meals.filter(m => m.id !== el.dataset.id); save(); renderAll(); }
   else if (a === 'delEx') { const d = getDay(sel); d.ex = d.ex.filter(m => m.id !== el.dataset.id); save(); renderAll(); }
+  else if (a === 'delSession') {
+    if (!confirm('Xóa buổi tập này khỏi lịch sử?')) return;
+    const d = getDay(el.dataset.d); d.ex = d.ex.filter(m => m.id !== el.dataset.id); save(); renderAll();
+  }
   else if (a === 'delWeight') { if (confirm('Xóa lần cân này?')) { delete state.weights[el.dataset.d]; save(); renderAll(); } }
-  else if (a === 'delFood') { state.customFoods = state.customFoods.filter(f => f.id !== el.dataset.id); save(); renderFoodList(); renderSettings(); }
-  else if (a === 'goto') { sel = el.dataset.d; renderToday(); showTab('today'); }
+  else if (a === 'delFood') { state.customFoods = state.customFoods.filter(f => f.id !== el.dataset.id); save(); renderFoodList(); renderSettings(); renderFoodResults(); }
   else if (a === 'editProfile') openWizard(true);
+  else if (a === 'testMusic') {
+    clearTimeout(musicTestT);
+    if (AUDIO.music.isPlaying()) AUDIO.music.stop();
+    else {
+      const st = settings().music;
+      AUDIO.music.setVolume(settings().volume); AUDIO.music.setMode('work'); AUDIO.music.play(AUDIO.STYLES[st] ? st : 'edm');
+      musicTestT = setTimeout(() => { AUDIO.music.stop(); renderSettings(); }, 12000);
+    }
+    renderSettings();
+  }
+  else if (a === 'testVoice') { AUDIO.ensure(); AUDIO.voice.setOn(true); AUDIO.voice.say('Bài 1: Goblet squat. Hiệp 1 trên 3. 10 đến 12 lần.'); AUDIO.voice.setOn(settings().voice); }
   else if (a === 'export') exportData();
   else if (a === 'import') $('#importFile').click();
   else if (a === 'reset') {
@@ -941,6 +841,21 @@ document.addEventListener('click', ev => {
   }
 });
 
+// Cài đặt âm thanh
+$('#soundCard').addEventListener('change', ev => {
+  const st = settings(), id = ev.target.id;
+  if (id === 'setVoice') { st.voice = ev.target.checked; AUDIO.voice.setOn(st.voice); }
+  else if (id === 'setMusic') st.music = ev.target.value;
+  else if (id === 'setPlaylist') st.playlist = /^https?:\/\//i.test(ev.target.value.trim()) ? ev.target.value.trim() : '';
+  else return;
+  save();
+});
+$('#soundCard').addEventListener('input', ev => {
+  if (ev.target.id !== 'setVol') return;
+  settings().volume = +ev.target.value; AUDIO.music.setVolume(+ev.target.value); save();
+});
+
+$('#foodQ').addEventListener('input', renderFoodResults);
 $('#importFile').addEventListener('change', async ev => {
   const file = ev.target.files[0]; if (!file) return;
   try {
@@ -954,7 +869,7 @@ $('#importFile').addEventListener('change', async ev => {
 });
 $('#fName').addEventListener('input', () => {
   const v = $('#fName').value.trim().toLowerCase();
-  foodBase = allFoods().find(f => f[0].toLowerCase() === v) || null;
+  foodBase = allFoods().find(f => f.n.toLowerCase() === v) || null;
   if (foodBase) fillFoodFields(num($('#fQty').value, 1)); else $('#fUnit').textContent = '';
 });
 $('#fQty').addEventListener('input', () => fillFoodFields(num($('#fQty').value, 1)));
@@ -1004,6 +919,7 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
 /* ---------------- Khởi động ---------------- */
+AUDIO.voice.setOn(settings().voice);
 renderInstallCard();
 $('#eType').innerHTML = EX_TYPES.map(([n, m]) => `<option value="${m}">${n}</option>`).join('');
 renderFoodList();
@@ -1013,5 +929,5 @@ else {
   renderAll();
   let t = 'today';
   try { t = localStorage.getItem(KEY + '.tab') || 'today'; } catch (e) {}
-  showTab(t);
+  showTab({weight: 'progress', history: 'progress'}[t] || t);
 }

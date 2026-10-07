@@ -17,7 +17,6 @@ const ENGINE = (() => {
   const JOB = {desk: 1.2, light: 1.375, active: 1.55, heavy: 1.725};
   const PACE = {loss: {slow: 0.005, normal: 0.0075, fast: 0.01}, gain: {slow: 0.0025, normal: 0.004, fast: 0.005}};
   const LVL = {new: 1, some: 2, pro: 3};
-  const BUDGET = {low: 1, mid: 2, high: 3};
   const ACCESSORY = ['core', 'calf', 'rear', 'balance'];
   const has = (arr, k) => (arr || []).includes(k);
   const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
@@ -103,7 +102,10 @@ const ENGINE = (() => {
       : e.slot === 'calf' ? B.REPS_SPECIAL.calf : e.slot === 'rear' ? B.REPS_SPECIAL.rear : `${scheme.reps} lần`;
     const repsTime = e.slot === 'balance' ? B.REPS_SPECIAL.balance : B.REPS_SPECIAL.hold;
     const alt = alternatives(e.id, p);
+    const weighted = e.equip.some(q => ['db', 'barbell', 'cable', 'machine'].includes(q));
+    const step = e.equip.some(q => ['barbell', 'cable', 'machine'].includes(q)) ? 2.5 : weighted ? 1 : 0;
     return {id: e.id, slot: e.slot, name: e.name, cue: e.cue, muscles: e.muscles || B.SLOT_INFO[e.slot].muscles, time: e.time, equip: equipLabel(e),
+      equipIds: e.equip, weighted, step,
       sets: s, setsN: parseInt(s, 10), reps: e.time ? repsTime : repsRep, repsRep, repsTime, holdSec: parseInt(repsTime, 10),
       rest: acc ? `${B.ACCESSORY_REST} giây` : scheme.rest, restSec: acc ? B.ACCESSORY_REST : scheme.restSec,
       easier: alt.easier, harder: alt.harder};
@@ -275,88 +277,81 @@ const ENGINE = (() => {
       fiber: r0(target / 1000 * 14), water: w * 0.035, bmi: w / (h * h), goalBmi: p.goalWeight / (h * h), range: healthyRange(p.height)};
   }
 
-  function fits(p, x, ignoreBudget) {
+  function fits(p, x) {
     if (p.diet === 'vegan' && x.diet !== 'vegan') return false;
     if (p.diet === 'veg' && x.diet === 'omni') return false;
     if ((x.tags || []).some(t => has(p.avoid, t))) return false;
-    if (!ignoreBudget && x.cost > (BUDGET[p.budget] || 2)) return false;
     return true;
   }
 
-  const sum = items => items.reduce((a, x) => ({kcal: a.kcal + x.kcal, p: a.p + x.p, c: a.c + x.c, f: a.f + x.f}), {kcal: 0, p: 0, c: 0, f: 0});
-  const density = (a, b) => b.p / b.kcal - a.p / a.kcal;
+  /* ---------------- Món ăn: tra cứu, phân loại nên ăn / hạn chế ---------------- */
+  // Bỏ dấu tiếng Việt để tìm "pho bo" vẫn ra "Phở bò"
+  const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
-  function srcPref(p, label, type) {
-    if (p.cook === 'self') return 'home';
-    if (p.cook === 'out') return 'out';
-    if (type === 'b') return null;
-    return label === 'Trưa' || label === 'Bữa 1' ? 'out' : 'home';
+  function classify(x) {
+    if (x.flag) return {flag: x.flag, why: x.why, alt: x.alt};
+    const pd = x.kcal ? x.p * 4 / x.kcal : 0, fr = x.kcal ? x.f * 9 / x.kcal : 0;
+    let flag = null, why = '';
+    if (x.cat === 'drink' && x.c >= 20 && x.p < 3) { flag = 'limit'; why = 'Nhiều đường'; }
+    else if (x.kcal >= 600 && pd < 0.2) { flag = 'limit'; why = 'Nhiều calo, ít đạm'; }
+    else if (fr >= 0.45 && x.kcal >= 300) { flag = 'limit'; why = 'Nhiều dầu mỡ'; }
+    else if (pd >= 0.25) { flag = 'good'; why = 'Giàu đạm'; }
+    else if (pd >= 0.2 && x.kcal <= 550 && fr < 0.35) { flag = 'good'; why = 'Cân bằng, đủ đạm'; }
+    else if (['veg', 'fruit'].includes(x.cat) && x.kcal <= 110) { flag = 'good'; why = x.cat === 'veg' ? 'Ít calo, nhiều xơ' : 'Ít calo, nhiều vitamin'; }
+    else if (x.cat === 'drink' && x.kcal <= 60) { flag = 'good'; why = 'Gần như không calo'; }
+    return {flag, why: why || x.why, alt: x.alt};
   }
 
-  function buildMenu(p, c, dayIdx) {
-    const split = B.MEAL_SPLITS[c.mealsN];
-    const dayTarget = c.dayTargets[dayIdx] ?? c.target;
-    const usedDish = new Set();
-    const meals = split.map(([label, share, type, logKey], i) => {
-      const tgt = dayTarget * share, pT = c.protein * share;
-      const items = [];
-      let note = '';
-      if (type === 's') {
-        const pool = B.SNACKS.filter(s => fits(p, s) && ['protein', 'fruit'].includes(s.role))
-          .sort((a, b) => Math.abs(a.kcal - tgt) - Math.abs(b.kcal - tgt)).slice(0, 4);
-        if (pool.length) items.push(pool[(dayIdx + i) % pool.length]);
-        const rem = tgt - sum(items).kcal;
-        const more = B.SNACKS.filter(s => fits(p, s) && !items.includes(s) && ['fruit', 'protein'].includes(s.role) && s.kcal <= rem + 30);
-        if (rem > 70 && more.length) items.push(more[dayIdx % more.length]);
-      } else {
-        let pool = B.DISHES.filter(d => d.meal.includes(type) && fits(p, d));
-        if (!pool.length) pool = B.DISHES.filter(d => d.meal.includes(type) && fits(p, d, true));
-        const src = srcPref(p, label, type);
-        const pref = pool.filter(d => !src || d.src === src);
-        if (pref.length >= 2) pool = pref;
-        const fresh = pool.filter(d => !usedDish.has(d.n));
-        if (fresh.length) pool = fresh;
-        // Điểm phạt: lệch calo + thiếu đạm (1g đạm ≈ 10 kcal) + nhiều tinh bột nếu ăn low-carb
-        const cost = d => Math.abs(d.kcal - tgt) + Math.max(0, pT - d.p) * 10 + (p.diet === 'lowcarb' ? Math.max(0, d.c - 40) * 4 : 0);
-        const top = [...pool].sort((a, b) => cost(a) - cost(b)).slice(0, 5);
-        if (top.length) { const main = top[(dayIdx * 2 + i) % top.length]; items.push(main); usedDish.add(main.n); }
-        for (let k = 0; k < 3; k++) {
-          const tot = sum(items), rem = tgt - tot.kcal, short = tot.p < pT * 0.85;
-          if (rem < (short ? 40 : 80)) break;
-          const cands = B.SNACKS.filter(s => fits(p, s) && s.kcal <= rem + (short ? 70 : 40) && !items.includes(s));
-          if (!cands.length) break;
-          let add = short ? cands.filter(s => s.role === 'protein').sort(density)[0] : null;
-          if (!add) {
-            const roles = p.diet === 'lowcarb' ? ['veg', 'fruit', 'protein'] : ['veg', 'fruit', 'carb'];
-            const alt = cands.filter(s => roles.includes(s.role)).sort((a, b) => Math.abs(a.kcal - rem) - Math.abs(b.kcal - rem)).slice(0, 2);
-            add = alt[(dayIdx + k) % (alt.length || 1)] || cands[0];
-          }
-          items.push(add);
-        }
-        if (sum(items).kcal > tgt * 1.2) note = 'Ăn khoảng ¾ phần tinh bột (cơm, bún, bánh) để vừa khẩu phần.';
-      }
-      if (!items.length) note = 'Không tìm thấy món phù hợp với các lựa chọn, hãy ăn theo quy tắc đĩa ăn.';
-      const t = sum(items);
-      return {label, logKey, items, kcal: r0(t.kcal), p: r1(t.p), c: r1(t.c), f: r1(t.f), target: r0(tgt), note};
-    });
-    const t = meals.reduce((a, m) => ({kcal: a.kcal + m.kcal, p: a.p + m.p}), {kcal: 0, p: 0});
-    const gap = r0(c.protein - t.p);
-    let tip = '';
-    if (gap >= 15) {
-      let boost = B.SNACKS.filter(s => s.role === 'protein' && fits(p, s)).sort(density).slice(0, 2);
-      if (!boost.length) boost = B.SNACKS.filter(s => s.role === 'protein' && fits(p, s, true)).sort(density).slice(0, 2);
-      tip = `Còn thiếu khoảng ${gap}g đạm: ${boost.length ? `thêm ${boost.map(s => s.n.toLowerCase()).join(' hoặc ')}, ` : ''}hoặc gấp rưỡi phần đạm trong bữa chính và bớt phần cơm tương ứng.`;
+  // Danh sách món (kèm món người dùng tự lưu), mỗi món có nhãn
+  function foods(custom = []) {
+    const mine = custom.map(f => ({n: f.name, unit: f.unit || '1 phần', kcal: f.kcal, p: f.p, c: f.c, f: f.f, cat: 'mine', diet: 'omni', tags: [], flag: null, why: '', alt: '', mine: true}));
+    return [...mine, ...B.FOOD_DB].map(x => ({...x, ...classify(x), key: norm(x.n)}));
+  }
+  function searchFood(q, cat, custom) {
+    const nq = norm(q).trim(), words = nq.split(/\s+/).filter(Boolean);
+    // Ưu tiên: tên bắt đầu bằng từ khóa → có cụm từ khóa liền nhau → các từ nằm rải rác
+    const rank = x => x.key.startsWith(nq) ? 0 : x.key.includes(nq) ? 1 : 2;
+    return foods(custom).filter(x => (!cat || x.cat === cat) && words.every(w => x.key.includes(w)))
+      .map((x, i) => ({x, i, r: rank(x)})).sort((a, b) => a.r - b.r || a.i - b.i).map(o => o.x);
+  }
+  // Món nên ăn / nên hạn chế theo chế độ ăn và mục tiêu của người dùng
+  function foodAdvice(p, c) {
+    const all = foods().filter(x => fits(p, x));
+    const pd = x => x.kcal ? x.p * 4 / x.kcal : 0;
+    const good = all.filter(x => x.flag === 'good').sort((a, b) => c && c.dir > 0 ? b.p - a.p : pd(b) - pd(a));
+    const hab = {milktea: 'Trà sữa', soda: 'Nước ngọt', beer: 'Bia', sweets: 'Bánh ngọt', snacking: 'Snack'};
+    const mineFirst = Object.entries(hab).filter(([k]) => has(p.habits, k)).map(([, v]) => norm(v));
+    const limit = all.filter(x => x.flag === 'limit')
+      .sort((a, b) => (mineFirst.some(m => b.key.startsWith(m)) - mineFirst.some(m => a.key.startsWith(m))) || b.kcal - a.kcal);
+    return {good, limit};
+  }
+
+  /* ---------------- Tăng tiến: gợi ý mức tạ / số lần cho buổi sau ---------------- */
+  const repRange = s => { const m = String(s).match(/(\d+)(?:–(\d+))?/); return m ? [+m[1], +(m[2] || m[1])] : [10, 12]; };
+  const fmtKg = n => (Math.round(n * 10) / 10).toLocaleString('vi-VN');
+  // Điểm của 1 hiệp: bài có tạ dùng 1RM ước tính (Epley), bài không tạ dùng số lần / số giây
+  const setScore = (ex, s) => ex.weighted && s[0] > 0 ? s[0] * (1 + s[1] / 30) : s[1];
+
+  function suggest(ex, hist) {
+    const last = hist && hist.length ? hist[hist.length - 1] : null;
+    const [lo, hi] = repRange(ex.reps);
+    if (!last) return {kg: null, reps: hi, last: '', up: false,
+      text: ex.weighted ? `Buổi đầu: chọn mức tạ làm được ${lo} lần mà vẫn còn dư 2–3 lần.` : ''};
+    const kg = Math.max(...last.s.map(x => x[0])), reps = last.s.map(x => x[1]);
+    const allTop = reps.every(r => r >= hi);
+    const lastTxt = ex.weighted && kg > 0 ? `${fmtKg(kg)} kg × ${reps.join('/')}` : ex.time ? reps.map(r => `${r}s`).join('/') : `${reps.join('/')} lần`;
+    if (ex.weighted && kg > 0) {
+      if (allTop) { const nk = kg + ex.step; return {kg: nk, reps: lo, last: lastTxt, up: true, text: `Lần trước ${lastTxt} → tăng lên ${fmtKg(nk)} kg, mục tiêu ${lo} lần`}; }
+      return {kg, reps: Math.min(hi, Math.max(...reps) + 1), last: lastTxt, up: false, text: `Lần trước ${lastTxt} → giữ ${fmtKg(kg)} kg, cố thêm 1 lần mỗi hiệp`};
     }
-    // Ăn quanh giờ tập
-    const session = c.week[dayIdx];
-    let workout = null;
-    if (session && session.kind !== 'rest') {
-      const when = B.WORKOUT_FUEL[p.time] || B.WORKOUT_FUEL.any;
-      const pre = B.SNACKS.filter(s => fits(p, s, true) && ['fruit', 'carb'].includes(s.role) && s.kcal <= 140);
-      const post = B.SNACKS.filter(s => fits(p, s) && s.role === 'protein').sort(density);
-      workout = {pre: pre.length ? pre[dayIdx % pre.length].n : 'Chuối', preWhen: when.pre, post: post.length ? post[0].n : 'Bữa có đạm', postWhen: when.post};
-    }
-    return {dayIdx, target: dayTarget, training: !!workout, meals, kcal: t.kcal, p: r0(t.p), tip, workout};
+    if (allTop) return {kg: null, reps: hi, last: lastTxt, up: true,
+      text: `Lần trước ${lastTxt} (đạt tối đa) → ${ex.harder ? `thử bài khó hơn: ${ex.harder.name}` : ex.time ? 'giữ thêm 10 giây' : 'xuống chậm 3 giây cho khó hơn'}`};
+    return {kg: null, reps: Math.min(hi, Math.max(...reps) + 1), last: lastTxt, up: false, text: `Lần trước ${lastTxt} → cố thêm ${ex.time ? '5 giây' : '1 lần'} mỗi hiệp`};
+  }
+  function isPR(ex, hist, sets) {
+    if (!hist || !hist.length || !sets.length) return false;
+    const best = Math.max(...hist.flatMap(h => h.s.map(x => setScore(ex, x))));
+    return Math.max(...sets.map(x => setScore(ex, x))) > best + 1e-9;
   }
 
   /* ---------------- Đọc nhật ký để HLV nhận xét ---------------- */
@@ -403,7 +398,15 @@ const ENGINE = (() => {
       ? slope(ws.map(([d, w]) => ({x: dayDiff(ws[0][0], d), y: w}))) * 7 : null;
     const allW = Object.keys(state.weights).filter(d => d <= date).sort();
     const water = prior.map(d => (state.days[d] || {}).water || 0).filter(x => x > 0);
-    return {loggedDays: logged.length, avgKcal: r0(avgKcal), avgTarget: r0(avgTarget), kcalDiff: logged.length ? r0(avgKcal - avgTarget) : 0,
+    // Cảm nhận độ nặng các buổi gần đây + kỷ lục mới trong 7 ngày
+    const sessions = [];
+    for (let i = 0; i < 21; i++) {
+      const d = addDays(date, -i);
+      ((state.days[d] || {}).ex || []).filter(e => e.planned).forEach(e => sessions.push({d, rpe: e.rpe, prs: e.prs || 0}));
+    }
+    const rpes = sessions.filter(x => x.rpe).map(x => x.rpe);
+    const prs7 = sessions.filter(x => x.d > addDays(date, -7)).reduce((a, x) => a + x.prs, 0);
+    return {rpes, prs7, loggedDays: logged.length, avgKcal: r0(avgKcal), avgTarget: r0(avgTarget), kcalDiff: logged.length ? r0(avgKcal - avgTarget) : 0,
       avgP: r0(avgP), protPct: c.protein ? avgP / c.protein : 1, done, plannedSoFar, plannedWeek, streak, weekendExtra, trend,
       lastWeighAgo: allW.length ? dayDiff(allW[allW.length - 1], date) : null,
       waterDays: water.length, waterAvg: avg(water), waterGoal: Math.ceil(c.water / 0.25), daysSinceStart: dayDiff(p.startDate || date, date)};
@@ -425,14 +428,7 @@ const ENGINE = (() => {
       equipNames: (p.equipment || []).map(equipName),
       weeklyMin: week.reduce((a, d) => a + (d.kind === 'rest' ? 0 : d.minutes), 0),
       perMealP: r0(m.protein * share / mains),
-      chen: Math.max(0.5, Math.round(m.carb * share * 0.6 / mains / 45 * 2) / 2),
-      proteins: B.PROTEINS.filter(([, , g, cost]) => {
-        if (p.diet === 'vegan' && g !== 'plant') return false;
-        if (p.diet === 'veg' && !['plant', 'egg', 'dairy'].includes(g)) return false;
-        if (has(p.avoid, g)) return false;
-        return cost <= (BUDGET[p.budget] || 2);
-      }),
-      carbs: B.CARBS.filter(c => !(has(p.avoid, 'gluten') && c.startsWith('Bánh mì')))
+      chen: Math.max(0.5, Math.round(m.carb * share * 0.6 / mains / 45 * 2) / 2)
     };
     if (state) ctx.log = review(state, p, ctx, date);
     const rules = [];
@@ -445,7 +441,7 @@ const ENGINE = (() => {
       } catch (e) { /* bỏ qua quy tắc lỗi */ }
     }
     rules.sort((a, b) => a.pri - b.pri);
-    return {p, ctx, week, phase, rules, menu: dayIdx => buildMenu(p, ctx, dayIdx)};
+    return {p, ctx, week, phase, rules};
   }
 
   /* ---------------- Tự hiệu chỉnh theo dữ liệu thực tế ----------------
@@ -462,5 +458,6 @@ const ENGINE = (() => {
     return {avg: r0(a), real: r0(real), perWeek: sl * 7, days: intake.length, offset: r0(real - formulaTdee)};
   }
 
-  return {healthyRange, phaseOf, analyze, buildMenu, adaptive, alternatives, review, fits, exerciseById, tagsOf, availableCount, equipUpgrades};
+  return {healthyRange, phaseOf, analyze, adaptive, alternatives, review, fits, exerciseById, tagsOf, availableCount, equipUpgrades,
+    norm, classify, foods, searchFood, foodAdvice, repRange, suggest, isPR, setScore, fmtKg};
 })();
