@@ -5,7 +5,7 @@
    - Font Google: lưu lại sau lần tải đầu.
    Khi sửa code, tăng số phiên bản CACHE để máy người dùng tải bản mới.
    ===================================================================== */
-const CACHE = 'scn-app-v6';
+const CACHE = 'scn-app-v7';
 const FONT_CACHE = 'scn-fonts';
 const ASSETS = [
   './', 'index.html', 'app.js', 'engine.js', 'audio.js', 'player.js',

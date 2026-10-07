@@ -293,8 +293,11 @@ const ENGINE = (() => {
     const pd = x.kcal ? x.p * 4 / x.kcal : 0, fr = x.kcal ? x.f * 9 / x.kcal : 0;
     let flag = null, why = '';
     if (x.cat === 'drink' && x.c >= 20 && x.p < 3) { flag = 'limit'; why = 'Nhiều đường'; }
-    else if (x.kcal >= 600 && pd < 0.2) { flag = 'limit'; why = 'Nhiều calo, ít đạm'; }
-    else if (fr >= 0.45 && x.kcal >= 300) { flag = 'limit'; why = 'Nhiều dầu mỡ'; }
+    else if (x.cat === 'bakery' && x.c >= 15 && pd < 0.12) { flag = 'limit'; why = 'Nhiều đường'; }
+    else if (['snack', 'fastfood', 'bakery'].includes(x.cat) && fr >= 0.45 && x.kcal >= 150) { flag = 'limit'; why = 'Nhiều dầu mỡ'; }
+    else if (x.cat === 'fastfood' && fr >= 0.4 && pd < 0.25) { flag = 'limit'; why = 'Chiên / nhiều dầu mỡ'; }
+    else if (x.kcal >= 650 && pd < 0.18) { flag = 'limit'; why = 'Nhiều calo, ít đạm'; }
+    else if (fr >= 0.45 && x.kcal >= 300 && pd < 0.25) { flag = 'limit'; why = 'Nhiều dầu mỡ'; }
     else if (pd >= 0.25) { flag = 'good'; why = 'Giàu đạm'; }
     else if (pd >= 0.2 && x.kcal <= 550 && fr < 0.35) { flag = 'good'; why = 'Cân bằng, đủ đạm'; }
     else if (['veg', 'fruit'].includes(x.cat) && x.kcal <= 110) { flag = 'good'; why = x.cat === 'veg' ? 'Ít calo, nhiều xơ' : 'Ít calo, nhiều vitamin'; }

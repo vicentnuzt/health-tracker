@@ -137,8 +137,17 @@ let sel = today();
 let planSub = 'week';
 let foodBase = null;
 
-let toastT;
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400); }
+// Thông báo nhanh; có thể kèm nút "Hoàn tác" (giữ 5 giây)
+let toastT, toastUndo = null;
+function toast(msg, undo) {
+  const t = $('#toast');
+  toastUndo = undo || null;
+  t.innerHTML = esc(msg) + (undo ? '<button class="toast-undo" data-act="undoToast">Hoàn tác</button>' : '');
+  t.classList.toggle('has-undo', !!undo);
+  t.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { t.classList.remove('on', 'has-undo'); toastUndo = null; }, undo ? 5000 : 2400);
+}
 
 /* =====================================================================
    KHẢO SÁT
@@ -377,6 +386,7 @@ function renderToday() {
     <div class="tile"><span class="small muted">Mục tiêu${credit ? ' (+vận động)' : ''}</span><b>${fmt(budget)}</b></div>
     <div class="tile"><span class="small muted">Đã ăn</span><b>${fmt(t.kcal)}</b></div>
     <div class="tile" style="grid-column:span 2"><span class="small muted">Đạm ${r0(t.p)} / ${c.protein} g</span>${bar(t.p, c.protein, 'var(--p)')}</div>`;
+  $('#todayMeals').innerHTML = mealListHtml(day, true);
 
   const wNow = weightOn(sel), wPrev = sortedWeights().filter(e => e.d <= addDays(sel, -7)).pop();
   $('#wNow').textContent = `${fmt1(wNow)} kg`;
@@ -538,19 +548,26 @@ function renderFood() {
   $('#foodLimit').innerHTML = foodLists.limit.map((x, i) => foodRow(x, i, 'limit')).join('');
 
   $('#logDateLbl').textContent = sel === today() ? 'Hôm nay' : fmtDate(sel);
-  const groups = Object.entries(MEALS).map(([k, label]) => {
-    const items = day.meals.filter(m => m.meal === k);
-    if (!items.length) return '';
-    return `<h3>${label} · ${fmt(items.reduce((a, m) => a + m.kcal, 0))} kcal</h3><ul class="list">${items.map(m => `
-      <li><div class="name">${esc(m.name)}${m.qty !== 1 ? ` <span class="muted">×${m.qty}</span>` : ''}
-        <div class="small muted">Đạm ${fmt1(m.p)}g · Tinh bột ${fmt1(m.c)}g · Béo ${fmt1(m.f)}g</div></div>
-        <span class="kc">${fmt(m.kcal)}</span><button class="icon-x" data-act="delMeal" data-id="${m.id}" aria-label="Xóa">✕</button></li>`).join('')}</ul>`;
-  }).join('');
-  $('#mealList').innerHTML = groups || '<div class="muted small">Chưa ghi món nào. Tra món ở trên rồi bấm <b>+</b> để ghi.</div>';
+  $('#mealList').innerHTML = mealListHtml(day, false);
 
   const sec = (title, cat) => { const h = ruleList(P.rules, cat); return h ? `<details class="card"><summary><b>${title}</b></summary><div style="margin-top:8px">${h}</div></details>` : ''; };
   $('#foodRules').innerHTML = sec('🍽 Quy tắc ăn uống', 'eat') + sec('🔁 Sửa thói quen', 'habit') +
     sec(p.cook === 'self' ? '🍳 Mẹo nấu ăn' : '🥡 Ăn ngoài thông minh', 'out') + sec('😋 Món khoái khẩu', 'fav');
+}
+
+// Danh sách món đã ghi trong ngày: chỉnh số phần (−/+ ½ phần) và xóa. compact = bản gọn cho tab Hôm nay
+function mealListHtml(day, compact) {
+  const row = m => `<li><div class="name">${esc(m.name)}
+      <div class="small muted">${fmt(m.kcal)} kcal · ${fmt1(m.p)}g đạm${compact ? ` · ${MEALS[m.meal].replace('Bữa ', '').toLowerCase()}` : ''}</div></div>
+      <span class="qty"><button data-act="mealQty" data-id="${m.id}" data-d="-1" aria-label="Bớt nửa phần">−</button><span>×${fmt1(m.qty)}</span>
+      <button data-act="mealQty" data-id="${m.id}" data-d="1" aria-label="Thêm nửa phần">+</button></span>
+      <button class="icon-x" data-act="delMeal" data-id="${m.id}" aria-label="Xóa ${esc(m.name)}">✕</button></li>`;
+  if (!day.meals.length) return compact ? '' : '<div class="muted small">Chưa ghi món nào. Tra món ở trên rồi bấm <b>+</b> để ghi.</div>';
+  if (compact) return `<div class="meal-mini"><div class="eyebrow">Đã ăn ${sel === today() ? 'hôm nay' : 'ngày này'}</div><ul class="list">${day.meals.map(row).join('')}</ul></div>`;
+  return Object.entries(MEALS).map(([k, label]) => {
+    const items = day.meals.filter(m => m.meal === k);
+    return items.length ? `<h3>${label} · ${fmt(items.reduce((a, m) => a + m.kcal, 0))} kcal</h3><ul class="list">${items.map(row).join('')}</ul>` : '';
+  }).join('');
 }
 
 // Ghi món vào bữa tương ứng với giờ hiện tại
@@ -807,14 +824,34 @@ document.addEventListener('click', ev => {
   else if (a === 'foodCat') { foodCat = el.dataset.v; renderFoodResults(); }
   else if (a === 'logFood') {
     const x = foodLists[el.dataset.list][+el.dataset.i]; if (!x) return;
-    const meal = mealByHour();
-    getDay(sel).meals.push({id: uid(), meal, name: x.n, qty: 1, kcal: x.kcal, p: x.p, c: x.c, f: x.f});
-    save(); renderToday(); renderFood(); toast(`Đã ghi ${x.n} vào ${MEALS[meal].toLowerCase()}`);
+    const meal = mealByHour(), id = uid(), d = sel;
+    getDay(d).meals.push({id, meal, name: x.n, qty: 1, kcal: x.kcal, p: x.p, c: x.c, f: x.f});
+    save(); renderToday(); renderFood();
+    toast(`Đã ghi ${x.n} vào ${MEALS[meal].toLowerCase()}`, () => {
+      getDay(d).meals = getDay(d).meals.filter(m => m.id !== id); save(); renderToday(); renderFood(); toast('Đã bỏ món vừa ghi');
+    });
+  }
+  else if (a === 'undoToast') {
+    const fn = toastUndo; toastUndo = null; $('#toast').classList.remove('on', 'has-undo');
+    if (fn) fn();
+  }
+  else if (a === 'mealQty') {
+    const m = getDay(sel).meals.find(x => x.id === el.dataset.id); if (!m) return;
+    const q = Math.max(0.5, r1((m.qty || 1) + (+el.dataset.d) * 0.5));
+    // Tính lại theo 1 phần rồi nhân với số phần mới
+    const k = q / (m.qty || 1);
+    m.kcal = r0(m.kcal * k); m.p = r1(m.p * k); m.c = r1(m.c * k); m.f = r1(m.f * k); m.qty = q;
+    save(); renderToday(); renderFood();
   }
   else if (a === 'applyAdaptive') { state.profile.tdeeAdjust = +el.dataset.v; save(); renderAll(); toast('Đã cập nhật calo mục tiêu'); }
   else if (a === 'addMeal') addMeal();
   else if (a === 'addEx') addEx();
-  else if (a === 'delMeal') { const d = getDay(sel); d.meals = d.meals.filter(m => m.id !== el.dataset.id); save(); renderAll(); }
+  else if (a === 'delMeal') {
+    const date = sel, list = getDay(date).meals, idx = list.findIndex(m => m.id === el.dataset.id); if (idx < 0) return;
+    const [rm] = list.splice(idx, 1);
+    save(); renderToday(); renderFood();
+    toast(`Đã xóa ${rm.name}`, () => { getDay(date).meals.splice(idx, 0, rm); save(); renderToday(); renderFood(); });
+  }
   else if (a === 'delEx') { const d = getDay(sel); d.ex = d.ex.filter(m => m.id !== el.dataset.id); save(); renderAll(); }
   else if (a === 'delSession') {
     if (!confirm('Xóa buổi tập này khỏi lịch sử?')) return;

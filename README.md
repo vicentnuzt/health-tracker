@@ -36,7 +36,7 @@ Dữ liệu chỉ lưu trên thiết bị đang dùng (iPhone và máy tính kh�
   - **giọng HLV tiếng Việt** đọc tên bài, hiệp, giờ nghỉ, đếm ngược 3-2-1;
   - hướng dẫn kỹ thuật (cách thở, lỗi thường gặp, link video), đổi bài dễ hơn / khó hơn;
   - bấm giờ bài giữ tư thế, cardio biến tốc theo từng block, đánh giá độ nặng sau buổi tập.
-- **Dinh dưỡng:** tra cứu calo và đạm của ~130 món Việt (gõ không dấu cũng được), nhãn ✅ nên ăn / ⚠️ hạn chế kèm gợi ý thay thế, bấm + để ghi vào nhật ký.
+- **Dinh dưỡng:** tra cứu calo và đạm của ~450 món: Việt, Âu – Mỹ, fast food, Nhật, Hàn, Hoa – Thái – Ấn, bánh ngọt, đồ uống (gõ không dấu cũng được), nhãn ✅ nên ăn / ⚠️ hạn chế kèm gợi ý thay thế, bấm + để ghi vào nhật ký (có Hoàn tác, chỉnh số phần, xóa).
 - **Tiến độ:** lịch sử buổi tập, khối lượng đã nâng, kỷ lục cá nhân từng bài, biểu đồ cân nặng.
 - **HLV nhận xét theo nhật ký:** số buổi đã tập, ăn vượt hoặc thiếu, đạm thấp, ăn nhiều cuối tuần, cân đứng yên hoặc giảm quá nhanh, lâu chưa cân, uống ít nước, chuỗi ngày ghi chép.
 - **Tự hiệu chỉnh calo:** dựa trên lượng ăn thực tế và xu hướng cân nặng.
@@ -52,7 +52,7 @@ engine.js           Bộ máy phân tích: tính calo, chọn bài, gợi ý tă
 brain/              "Bộ não huấn luyện viên", chỉ chứa dữ liệu, sửa được mà không cần đụng code
   exercises.js      132 bài tập: nhóm chuyển động, dụng cụ, độ khó, nhóm cơ, chống chỉ định, hướng dẫn thở / lỗi thường gặp
   programs.js       Giáo án: chia buổi, vùng cải thiện, số hiệp/lần/nghỉ, chu kỳ 12 tuần, bước chân, cardio
-  nutrition.js      Bảng món Việt: calo, đạm, nhãn chay / dị ứng, nhãn nên ăn / hạn chế, gợi ý thay thế
+  nutrition.js      Bảng ~450 món (Việt, Âu, Á…): calo, đạm, nhãn chay / dị ứng, nhãn nên ăn / hạn chế, gợi ý thay thế
   rules.js          119 quy tắc: điều kiện → lời khuyên (an toàn, phân tích, HLV nhận xét, tập, ăn, thói quen…)
 ```
 

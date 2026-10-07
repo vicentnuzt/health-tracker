@@ -80,7 +80,7 @@ button{cursor:pointer;border:0;background:none}
 .btn-lg{padding:14px 20px;font-size:16px;font-style:italic;text-transform:uppercase;letter-spacing:.02em;font-weight:900}
 .btn-sm{padding:6px 12px;font-size:13px;border-radius:10px}
 .btn-icon{width:40px;height:40px;padding:0;border-radius:12px}
-.icon-x{color:var(--muted);padding:4px 8px;font-size:16px;border-radius:8px}
+.icon-x{color:var(--muted);font-size:15px;border-radius:10px;min-width:36px;height:36px;display:inline-grid;place-items:center;background:var(--surface-2);flex:none}
 .icon-x:hover{color:var(--bad);background:var(--surface-2)}
 button:disabled{opacity:.45;cursor:not-allowed}
 
@@ -305,6 +305,12 @@ label.check input{width:auto}
 /* ---------- Thông báo nhanh ---------- */
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);opacity:0;z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:800;transition:all .25s;pointer-events:none}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.has-undo{pointer-events:auto;display:flex;align-items:center;gap:12px}
+.toast-undo{color:var(--brand);font-weight:900;padding:4px 2px}
+.qty{display:inline-flex;align-items:center;gap:2px;flex:none}
+.qty button{width:30px;height:30px;border-radius:9px;background:var(--surface-2);font-weight:900;font-size:16px}
+.qty span{min-width:34px;text-align:center;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.meal-mini{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
 
 /* ---------- Dinh dưỡng ---------- */
 .search{position:relative;margin-bottom:10px}
@@ -445,6 +451,7 @@ input[type=range]{padding:0;height:28px;accent-color:var(--brand);background:non
       <div class="card">
         <div class="card-title"><h2>⚡ Năng lượng</h2><button class="btn btn-ghost btn-sm" data-act="openFood">🍜 Tra & ghi món ›</button></div>
         <div class="energy"><div class="ring" id="ring"></div><div class="tiles" id="todayStats"></div></div>
+        <div id="todayMeals"></div>
       </div>
       <div class="duo duo-wrap">
         <div class="card">
@@ -494,8 +501,6 @@ input[type=range]{padding:0;height:28px;accent-color:var(--brand);background:non
         <div class="cats" id="foodCats"></div>
         <ul class="foods" id="foodResults"></ul>
       </div>
-      <div class="card"><h2>✅ Nên ăn</h2><div class="small muted" id="goodNote" style="margin-bottom:4px"></div><ul class="foods" id="foodGood"></ul></div>
-      <div class="card"><h2>⚠️ Nên hạn chế</h2><div class="small muted" style="margin-bottom:4px">Không cần cấm hẳn: ăn ít đi, hoặc đổi sang gợi ý bên dưới.</div><ul class="foods" id="foodLimit"></ul></div>
       <div class="card">
         <div class="card-title"><h2>📝 Nhật ký ăn</h2><span class="small muted" id="logDateLbl"></span></div>
         <div id="mealList"></div>
@@ -521,6 +526,8 @@ input[type=range]{padding:0;height:28px;accent-color:var(--brand);background:non
           </div>
         </details>
       </div>
+      <div class="card"><h2>✅ Nên ăn</h2><div class="small muted" id="goodNote" style="margin-bottom:4px"></div><ul class="foods" id="foodGood"></ul></div>
+      <div class="card"><h2>⚠️ Nên hạn chế</h2><div class="small muted" style="margin-bottom:4px">Không cần cấm hẳn: ăn ít đi, hoặc đổi sang gợi ý bên dưới.</div><ul class="foods" id="foodLimit"></ul></div>
       <div id="foodRules"></div>
     </section>
 
